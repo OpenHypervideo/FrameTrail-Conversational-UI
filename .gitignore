@@ -1,0 +1,23 @@
+# Mac OS X
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+.directory
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+.idea/
+.claude/
+plans/
+node_modules/
+
+# Build output
+build/
