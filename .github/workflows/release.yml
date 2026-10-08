@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'    # Triggers on v0.1.0, v0.2.0-beta, etc.
+
+permissions:
+  contents: write    # Required to create releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    env:
+      VERSION: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          coverage: none
+
+      - name: Build
+        run: bash scripts/build.sh "$VERSION"
+
+      - name: Test the build
+        run: |
+          node --test-reporter=spec tests/run-js.mjs --build
+          php tests/run-php.php --build
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/frametrail-conversational-ui-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          body: |
+            Download [`frametrail-conversational-ui-${{ github.ref_name }}.zip`](https://github.com/OpenHypervideo/FrameTrail-Conversational-UI/releases/download/${{ github.ref_name }}/frametrail-conversational-ui-${{ github.ref_name }}.zip) and extract it into a FrameTrail installation (the folder that holds `index.html`): it adds `extensions/conversational-ui/` and `_server/extensions/conversational-ui/`. Then list the extension in `_data/config.json` → `extensions`, as the [README](https://github.com/OpenHypervideo/FrameTrail-Conversational-UI#installing) describes.

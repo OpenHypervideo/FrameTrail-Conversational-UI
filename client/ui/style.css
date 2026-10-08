@@ -1,0 +1,9 @@
+/* FrameTrail-Conversational-UI — the side panel's shell. Its content uses
+   FrameTrail's own classes (generic.css) and custom properties, so the themes
+   and the editor's palette apply; rules here are scoped to the panel. */
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUi {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
