@@ -1,0 +1,89 @@
+{
+    "description": "Chapters, told apart by their start and kept in order.",
+    "data": "lecture",
+    "user": { "id": "1", "name": "Ada", "role": "user" },
+    "duration": 600,
+    "cases": [
+        {
+            "name": "add_chapter",
+            "op": { "op": "add_chapter", "input": { "start": 190, "title": "Diffusion" } },
+            "result": { "kind": "chapters", "ref": 190, "title": "Diffusion", "start": 190, "end": 300 },
+            "inverse": { "method": "remove", "args": ["chapters", 190] },
+            "after": [{ "op": "add", "path": "/hypervideo/chapters/2", "value": { "start": 190, "title": "Diffusion" } }]
+        },
+        {
+            "name": "add_chapter: before the others",
+            "op": { "op": "add_chapter", "input": { "start": 0.5, "title": "Welcome" } },
+            "result": { "kind": "chapters", "ref": 0.5, "title": "Welcome", "start": 0.5, "end": 120 },
+            "inverse": { "method": "remove", "args": ["chapters", 0.5] },
+            "after": [{ "op": "add", "path": "/hypervideo/chapters/1", "value": { "start": 0.5, "title": "Welcome" } }]
+        },
+        {
+            "name": "update_chapter: its title",
+            "op": { "op": "update_chapter", "input": { "ref": 120, "title": "Cell membranes" } },
+            "result": { "kind": "chapters", "ref": 120, "title": "Cell membranes", "start": 120, "end": 300 },
+            "inverse": { "method": "update", "args": ["chapters", 120, { "title": "Membranes" }] },
+            "after": [{ "op": "replace", "path": "/hypervideo/chapters/1/title", "value": "Cell membranes" }]
+        },
+        {
+            "name": "update_chapter: its start, past the next one",
+            "op": { "op": "update_chapter", "input": { "ref": 120, "start": 400 } },
+            "result": { "kind": "chapters", "ref": 400, "title": "Membranes", "start": 400, "end": 600 },
+            "inverse": { "method": "update", "args": ["chapters", 400, { "start": 120 }] },
+            "after": [
+                { "op": "remove", "path": "/hypervideo/chapters/1" },
+                { "op": "add", "path": "/hypervideo/chapters/2", "value": { "start": 400, "title": "Membranes" } }
+            ]
+        },
+        {
+            "name": "update_chapter: start and title, both unchanged",
+            "op": { "op": "update_chapter", "input": { "ref": 120, "start": 120, "title": "Membranes" } },
+            "result": { "kind": "chapters", "ref": 120, "title": "Membranes", "start": 120, "end": 300 },
+            "inverse": null,
+            "after": []
+        },
+        {
+            "name": "remove_chapter",
+            "op": { "op": "remove_chapter", "input": { "ref": 120 } },
+            "result": { "kind": "chapters", "ref": 120, "title": "Membranes", "start": 120, "end": 300 },
+            "inverse": { "method": "add", "args": ["chapters", { "start": 120, "title": "Membranes" }] },
+            "after": [{ "op": "remove", "path": "/hypervideo/chapters/1" }]
+        },
+        {
+            "name": "add_chapter: where another starts",
+            "op": { "op": "add_chapter", "input": { "start": 300, "title": "Again" } },
+            "error": { "code": "invalid", "errors": [{ "path": "/start", "message": "is taken by another chapter" }] }
+        },
+        {
+            "name": "add_chapter: a title is needed",
+            "op": { "op": "add_chapter", "input": { "start": 10 } },
+            "error": { "code": "invalid", "errors": [{ "path": "/title", "message": "is required" }] }
+        },
+        {
+            "name": "add_chapter: not before the video",
+            "op": { "op": "add_chapter", "input": { "start": -1, "title": "Before" } },
+            "error": { "code": "invalid", "errors": [{ "path": "/start", "message": "must be >= 0" }] }
+        },
+        {
+            "name": "add_chapter: only the hypervideo's creator or an admin",
+            "user": { "id": "2", "name": "Grace", "role": "user" },
+            "op": { "op": "add_chapter", "input": { "start": 10, "title": "Mine" } },
+            "error": { "code": "notAllowed" }
+        },
+        {
+            "name": "update_chapter: onto another's start",
+            "op": { "op": "update_chapter", "input": { "ref": 120, "start": 300 } },
+            "error": { "code": "invalid", "errors": [{ "path": "/start", "message": "is taken by another chapter" }] }
+        },
+        {
+            "name": "update_chapter: no such chapter",
+            "op": { "op": "update_chapter", "input": { "ref": 99, "title": "Nothing" } },
+            "error": { "code": "notFound" }
+        },
+        {
+            "name": "remove_chapter: no such chapter",
+            "op": { "op": "remove_chapter", "input": { "ref": 121 } },
+            "error": { "code": "notFound" }
+        }
+    ]
+}

@@ -1,0 +1,422 @@
+{
+    "description": "Annotations: each user adds and changes their own, in their own file.",
+    "data": "lecture",
+    "user": { "id": "1", "name": "Ada", "role": "user" },
+    "generator": {
+        "type": "Software",
+        "name": "FrameTrail-Conversational-UI",
+        "model": "mistral-medium-latest",
+        "provider": "mistral"
+    },
+    "now": 1792000000000,
+    "duration": 600,
+    "cases": [
+        {
+            "name": "add_annotation: to the user's file",
+            "op": {
+                "op": "add_annotation",
+                "input": {
+                    "start": 190,
+                    "end": 245,
+                    "body": {
+                        "frametrail:type": "text",
+                        "frametrail:name": "Diffusion",
+                        "frametrail:attributes": { "text": "&lt;p&gt;Movement from high to low concentration.&lt;/p&gt;" }
+                    },
+                    "tags": ["key-term"]
+                }
+            },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-14T17:46:40.000Z",
+                "creator": { "nickname": "Ada", "id": "1" },
+                "own": true,
+                "type": "text",
+                "name": "Diffusion",
+                "start": 190,
+                "end": 245,
+                "text": "Movement from high to low concentration.",
+                "tags": ["key-term"]
+            },
+            "inverse": { "method": "remove", "args": ["annotations", "2026-10-14T17:46:40.000Z"] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/annotations/files/1/2",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=190,245",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "1_1790000000_lecture-3.mp4"
+                        },
+                        "body": {
+                            "frametrail:type": "text",
+                            "frametrail:name": "Diffusion",
+                            "frametrail:attributes": { "text": "&lt;p&gt;Movement from high to low concentration.&lt;/p&gt;" }
+                        },
+                        "frametrail:tags": ["key-term"],
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Annotation",
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-14T17:46:40.000Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "add_annotation: someone else's, to their file",
+            "user": { "id": "2", "name": "Grace", "role": "user" },
+            "op": {
+                "op": "add_annotation",
+                "input": {
+                    "start": 300,
+                    "end": 330,
+                    "body": {
+                        "frametrail:type": "webpage",
+                        "frametrail:name": "Membrane transport",
+                        "value": "https://en.wikipedia.org/wiki/Membrane_transport"
+                    }
+                }
+            },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-14T17:46:40.000Z",
+                "creator": { "nickname": "Grace", "id": "2" },
+                "own": true,
+                "type": "webpage",
+                "name": "Membrane transport",
+                "start": 300,
+                "end": 330,
+                "src": "https://en.wikipedia.org/wiki/Membrane_transport"
+            },
+            "inverse": { "method": "remove", "args": ["annotations", "2026-10-14T17:46:40.000Z"] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/annotations/files/2/1",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=300,330",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "1_1790000000_lecture-3.mp4"
+                        },
+                        "body": {
+                            "frametrail:type": "webpage",
+                            "frametrail:name": "Membrane transport",
+                            "value": "https://en.wikipedia.org/wiki/Membrane_transport"
+                        },
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Annotation",
+                        "creator": { "nickname": "Grace", "type": "Person", "id": "2" },
+                        "created": "2026-10-14T17:46:40.000Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "add_annotation: the user's first, in a new file",
+            "user": { "id": "3", "name": "Linus", "role": "admin" },
+            "op": {
+                "op": "add_annotation",
+                "input": {
+                    "start": 0,
+                    "end": 5,
+                    "body": { "frametrail:type": "text", "frametrail:attributes": { "text": "Hello" } }
+                }
+            },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-14T17:46:40.000Z",
+                "creator": { "nickname": "Linus", "id": "3" },
+                "own": true,
+                "type": "text",
+                "start": 0,
+                "end": 5,
+                "text": "Hello"
+            },
+            "inverse": { "method": "remove", "args": ["annotations", "2026-10-14T17:46:40.000Z"] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/annotations/files/3",
+                    "value": [
+                        {
+                            "target": {
+                                "selector": {
+                                    "value": "t=0,5",
+                                    "type": "FragmentSelector",
+                                    "conformsTo": "http://www.w3.org/TR/media-frags/"
+                                },
+                                "type": "Video",
+                                "source": "1_1790000000_lecture-3.mp4"
+                            },
+                            "body": { "frametrail:type": "text", "frametrail:attributes": { "text": "Hello" } },
+                            "generator": {
+                                "type": "Software",
+                                "name": "FrameTrail-Conversational-UI",
+                                "model": "mistral-medium-latest",
+                                "provider": "mistral"
+                            },
+                            "type": "Annotation",
+                            "frametrail:type": "Annotation",
+                            "creator": { "nickname": "Linus", "type": "Person", "id": "3" },
+                            "created": "2026-10-14T17:46:40.000Z",
+                            "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "add_annotation: no hotspots among annotations",
+            "op": { "op": "add_annotation", "input": { "start": 0, "end": 5, "body": { "frametrail:type": "hotspot" } } },
+            "error": {
+                "code": "invalid",
+                "errors": [
+                    {
+                        "path": "/body/frametrail:type",
+                        "message": "must be one of \"text\", \"html\", \"quiz\", \"image\", \"video\", \"audio\", \"pdf\", \"youtube\", \"vimeo\", \"wistia\", \"loom\", \"twitch\", \"soundcloud\", \"spotify\", \"webpage\", \"wikipedia\", \"entity\", \"location\", \"mastodon\", \"codepen\", \"figma\", \"urlpreview\", \"button\""
+                    }
+                ]
+            }
+        },
+        {
+            "name": "add_annotation: end before start",
+            "op": { "op": "add_annotation", "input": { "start": 9, "end": 5, "body": { "frametrail:type": "text" } } },
+            "error": { "code": "invalid", "errors": [{ "path": "/end", "message": "must not be before start" }] }
+        },
+        {
+            "name": "add_annotation: only by a signed-in user",
+            "user": { "id": "", "name": "", "role": "user" },
+            "op": { "op": "add_annotation", "input": { "start": 0, "end": 5, "body": { "frametrail:type": "text" } } },
+            "error": { "code": "notAllowed" }
+        },
+        {
+            "name": "update_annotation: time and text",
+            "op": {
+                "op": "update_annotation",
+                "input": {
+                    "ref": "2026-10-02T09:00:00.000Z",
+                    "start": 12,
+                    "end": 45,
+                    "body": {
+                        "frametrail:attributes": { "text": "&lt;p&gt;The membrane separates the cell from its surroundings.&lt;/p&gt;" }
+                    }
+                }
+            },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-02T09:00:00.000Z",
+                "creator": { "nickname": "Ada", "id": "1" },
+                "own": true,
+                "type": "text",
+                "name": "Key term",
+                "start": 12,
+                "end": 45,
+                "text": "The membrane separates the cell from its surroundings."
+            },
+            "inverse": {
+                "method": "update",
+                "args": [
+                    "annotations",
+                    "2026-10-02T09:00:00.000Z",
+                    {
+                        "generator": null,
+                        "target": { "selector": { "value": "t=10,40" } },
+                        "body": {
+                            "frametrail:attributes": {
+                                "text": "&lt;p&gt;A &lt;b&gt;membrane&lt;/b&gt; separates the cell from its surroundings.&lt;/p&gt;"
+                            }
+                        }
+                    }
+                ]
+            },
+            "after": [
+                { "op": "replace", "path": "/annotations/files/1/0/target/selector/value", "value": "t=12,45" },
+                {
+                    "op": "replace",
+                    "path": "/annotations/files/1/0/body/frametrail:attributes/text",
+                    "value": "&lt;p&gt;The membrane separates the cell from its surroundings.&lt;/p&gt;"
+                },
+                {
+                    "op": "add",
+                    "path": "/annotations/files/1/0/generator",
+                    "value": {
+                        "type": "Software",
+                        "name": "FrameTrail-Conversational-UI",
+                        "model": "mistral-medium-latest",
+                        "provider": "mistral"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "update_annotation: no more tags",
+            "op": { "op": "update_annotation", "input": { "ref": "2026-10-02T09:00:01.000Z", "tags": null } },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-02T09:00:01.000Z",
+                "creator": { "nickname": "Ada", "id": "1" },
+                "own": true,
+                "type": "wikipedia",
+                "name": "Cell membrane",
+                "start": 130,
+                "end": 170,
+                "src": "https://en.wikipedia.org/wiki/Cell_membrane"
+            },
+            "inverse": {
+                "method": "update",
+                "args": ["annotations", "2026-10-02T09:00:01.000Z", { "generator": null, "frametrail:tags": ["reading"] }]
+            },
+            "after": [
+                { "op": "remove", "path": "/annotations/files/1/1/frametrail:tags" },
+                {
+                    "op": "add",
+                    "path": "/annotations/files/1/1/generator",
+                    "value": {
+                        "type": "Software",
+                        "name": "FrameTrail-Conversational-UI",
+                        "model": "mistral-medium-latest",
+                        "provider": "mistral"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "update_annotation: the same created, someone else's own",
+            "user": { "id": "2", "name": "Grace", "role": "user" },
+            "op": { "op": "update_annotation", "input": { "ref": "2026-10-02T09:00:00.000Z", "end": 290 } },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-02T09:00:00.000Z",
+                "creator": { "nickname": "Grace", "id": "2" },
+                "own": true,
+                "type": "text",
+                "name": "Question",
+                "start": 250,
+                "end": 290,
+                "text": "Does osmosis need energy?"
+            },
+            "inverse": {
+                "method": "update",
+                "args": [
+                    "annotations",
+                    "2026-10-02T09:00:00.000Z",
+                    { "generator": null, "target": { "selector": { "value": "t=250,280" } } }
+                ]
+            },
+            "after": [
+                { "op": "replace", "path": "/annotations/files/2/0/target/selector/value", "value": "t=250,290" },
+                {
+                    "op": "add",
+                    "path": "/annotations/files/2/0/generator",
+                    "value": {
+                        "type": "Software",
+                        "name": "FrameTrail-Conversational-UI",
+                        "model": "mistral-medium-latest",
+                        "provider": "mistral"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "update_annotation: not someone else's",
+            "user": { "id": "2", "name": "Grace", "role": "user" },
+            "op": { "op": "update_annotation", "input": { "ref": "2026-10-02T09:00:01.000Z", "end": 175 } },
+            "error": { "code": "notFound" }
+        },
+        {
+            "name": "update_annotation: not its type",
+            "op": {
+                "op": "update_annotation",
+                "input": { "ref": "2026-10-02T09:00:01.000Z", "body": { "frametrail:type": "webpage" } }
+            },
+            "error": {
+                "code": "invalid",
+                "errors": [
+                    {
+                        "path": "/body/frametrail:type",
+                        "message": "cannot be changed; remove the annotation and add a new one"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "remove_annotation",
+            "op": { "op": "remove_annotation", "input": { "ref": "2026-10-02T09:00:01.000Z" } },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-02T09:00:01.000Z",
+                "creator": { "nickname": "Ada", "id": "1" },
+                "own": true,
+                "type": "wikipedia",
+                "name": "Cell membrane",
+                "start": 130,
+                "end": 170,
+                "src": "https://en.wikipedia.org/wiki/Cell_membrane",
+                "tags": ["reading"]
+            },
+            "inverse": {
+                "method": "add",
+                "args": [
+                    "annotations",
+                    {
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-02T09:00:01.000Z",
+                        "type": "Annotation",
+                        "frametrail:type": "Annotation",
+                        "frametrail:tags": ["reading"],
+                        "frametrail:uri": null,
+                        "target": {
+                            "type": "Video",
+                            "source": "1_1790000000_lecture-3.mp4",
+                            "selector": {
+                                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                                "type": "FragmentSelector",
+                                "value": "t=130,170"
+                            }
+                        },
+                        "body": {
+                            "type": "Text",
+                            "frametrail:type": "wikipedia",
+                            "format": "text/html",
+                            "value": "https://en.wikipedia.org/wiki/Cell_membrane",
+                            "frametrail:name": "Cell membrane",
+                            "frametrail:attributes": {}
+                        }
+                    }
+                ]
+            },
+            "after": [{ "op": "remove", "path": "/annotations/files/1/1" }]
+        },
+        {
+            "name": "remove_annotation: not someone else's",
+            "user": { "id": "3", "name": "Linus", "role": "admin" },
+            "op": { "op": "remove_annotation", "input": { "ref": "2026-10-02T09:00:01.000Z" } },
+            "error": { "code": "notFound" }
+        }
+    ]
+}

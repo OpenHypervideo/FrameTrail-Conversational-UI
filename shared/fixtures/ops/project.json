@@ -1,0 +1,179 @@
+{
+    "description": "A project with two hypervideos: listing them, and working on the one picked.",
+    "data": "project",
+    "user": { "id": "1", "name": "Ada", "role": "user" },
+    "generator": {
+        "type": "Software",
+        "name": "FrameTrail-Conversational-UI",
+        "model": "mistral-medium-latest",
+        "provider": "mistral"
+    },
+    "now": 1792000000000,
+    "cases": [
+        {
+            "name": "list_hypervideos: the first is open when none is picked",
+            "op": { "op": "list_hypervideos", "input": {} },
+            "result": {
+                "hypervideos": [
+                    {
+                        "id": "4",
+                        "name": "Interview with a biologist",
+                        "duration": 90,
+                        "subtitles": [],
+                        "open": true,
+                        "description": "",
+                        "creator": { "nickname": "Grace", "id": "2" }
+                    },
+                    {
+                        "id": "7",
+                        "name": "Field trip",
+                        "duration": 120,
+                        "subtitles": ["de"],
+                        "open": false,
+                        "description": "A walk along the river, cut from a longer recording.",
+                        "creator": { "nickname": "Ada", "id": "1" }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "list_hypervideos: the picked one is open",
+            "hypervideoId": "7",
+            "op": { "op": "list_hypervideos", "input": {} },
+            "result": {
+                "hypervideos": [
+                    {
+                        "id": "4",
+                        "name": "Interview with a biologist",
+                        "duration": 90,
+                        "subtitles": [],
+                        "open": false,
+                        "description": "",
+                        "creator": { "nickname": "Grace", "id": "2" }
+                    },
+                    {
+                        "id": "7",
+                        "name": "Field trip",
+                        "duration": 120,
+                        "subtitles": ["de"],
+                        "open": true,
+                        "description": "A walk along the river, cut from a longer recording.",
+                        "creator": { "nickname": "Ada", "id": "1" }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "inspect_hypervideo: a trimmed video, its time range from the in point",
+            "hypervideoId": "7",
+            "op": { "op": "inspect_hypervideo", "input": {} },
+            "result": {
+                "id": "7",
+                "name": "Field trip",
+                "video": "https://example.org/media/field-trip.mp4",
+                "duration": 120,
+                "timeRange": { "start": 12, "end": 132 },
+                "subtitles": ["de"],
+                "layout": { "top": [], "bottom": [], "left": [], "right": [] },
+                "counts": { "overlays": 0, "annotations": 0, "ownAnnotations": 0, "chapters": 1, "codeSnippets": 0 },
+                "overlayTypes": {},
+                "timeMap": [{ "start": 12, "end": 132, "chapter": "At the river", "overlays": 0, "annotations": 0 }],
+                "user": { "id": "1", "name": "Ada", "role": "user", "guest": false },
+                "canEdit": true,
+                "canAnnotate": true,
+                "description": "A walk along the river, cut from a longer recording.",
+                "creator": { "nickname": "Ada", "id": "1" }
+            }
+        },
+        {
+            "name": "inspect_hypervideo: an empty timeline, in equal segments",
+            "hypervideoId": "4",
+            "op": { "op": "inspect_hypervideo", "input": {} },
+            "result": {
+                "id": "4",
+                "name": "Interview with a biologist",
+                "video": null,
+                "duration": 90,
+                "timeRange": { "start": 0, "end": 90 },
+                "subtitles": [],
+                "layout": { "top": [], "bottom": [], "left": [], "right": [] },
+                "counts": { "overlays": 0, "annotations": 0, "ownAnnotations": 0, "chapters": 0, "codeSnippets": 0 },
+                "overlayTypes": {},
+                "timeMap": [
+                    { "start": 0, "end": 30, "overlays": 0, "annotations": 0 },
+                    { "start": 30, "end": 60, "overlays": 0, "annotations": 0 },
+                    { "start": 60, "end": 90, "overlays": 0, "annotations": 0 }
+                ],
+                "user": { "id": "1", "name": "Ada", "role": "user", "guest": false },
+                "canEdit": false,
+                "canAnnotate": true,
+                "description": "",
+                "creator": { "nickname": "Grace", "id": "2" }
+            }
+        },
+        {
+            "name": "read_transcript: the picked hypervideo's subtitles",
+            "hypervideoId": "7",
+            "op": { "op": "read_transcript", "input": {} },
+            "result": {
+                "lang": "de",
+                "languages": ["de"],
+                "cues": [
+                    { "start": 12, "end": 20, "text": "Wir stehen am Ufer des Flusses." },
+                    { "start": 60, "end": 69, "text": "Hier wachsen Weiden und Erlen." }
+                ],
+                "total": 2
+            }
+        },
+        {
+            "name": "read_transcript: a hypervideo without subtitles",
+            "hypervideoId": "4",
+            "op": { "op": "read_transcript", "input": {} },
+            "error": { "code": "notFound" }
+        },
+        {
+            "name": "add_chapter: only the picked hypervideo changes",
+            "hypervideoId": "7",
+            "op": { "op": "add_chapter", "input": { "start": 70, "title": "Willows" } },
+            "result": { "kind": "chapters", "ref": 70, "title": "Willows", "start": 70, "end": 132 },
+            "inverse": { "method": "remove", "args": ["chapters", 70] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideos/7/hypervideo/chapters/1",
+                    "value": { "start": 70, "title": "Willows" }
+                }
+            ]
+        },
+        {
+            "name": "add_chapter: not in someone else's hypervideo",
+            "hypervideoId": "4",
+            "op": { "op": "add_chapter", "input": { "start": 10, "title": "Start" } },
+            "error": { "code": "notAllowed" }
+        },
+        {
+            "name": "add_chapter: an admin may",
+            "hypervideoId": "4",
+            "user": { "id": "3", "name": "Linus", "role": "admin" },
+            "op": { "op": "add_chapter", "input": { "start": 10, "title": "Start" } },
+            "result": { "kind": "chapters", "ref": 10, "title": "Start", "start": 10, "end": 90 },
+            "inverse": { "method": "remove", "args": ["chapters", 10] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideos/4/hypervideo/chapters/0",
+                    "value": { "start": 10, "title": "Start" }
+                }
+            ]
+        },
+        {
+            "name": "a changeset for another hypervideo is refused",
+            "hypervideoId": "7",
+            "changeset": { "hypervideoId": "4", "ops": [{ "op": "add_chapter", "input": { "start": 70, "title": "Willows" } }] },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/hypervideoId", "message": "must be \"7\", the hypervideo it is applied to" }]
+            }
+        }
+    ]
+}

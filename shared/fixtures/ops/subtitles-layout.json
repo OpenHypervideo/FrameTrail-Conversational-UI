@@ -1,0 +1,149 @@
+{
+    "description": "Subtitles per language, and the content views of the layout areas.",
+    "data": "lecture",
+    "user": { "id": "1", "name": "Ada", "role": "user" },
+    "duration": 600,
+    "cases": [
+        {
+            "name": "set_subtitles: replaced",
+            "op": {
+                "op": "set_subtitles",
+                "input": { "lang": "en", "vtt": "WEBVTT\n\n00:00:01.000 --> 00:00:06.000\nWelcome to lecture three.\n" }
+            },
+            "result": { "lang": "en", "src": "en.vtt", "cues": 1 },
+            "inverse": {
+                "method": "setSubtitles",
+                "args": [
+                    "en",
+                    "WEBVTT\n\nNOTE Lecture 3, transcribed by hand\n\n1\n00:00:01.000 --> 00:00:06.000\nWelcome to the third lecture on cell biology.\n\n2\n00:00:06.000 --> 00:00:12.500\nToday we look at membranes &amp; transport.\n\n3\n00:02:00.000 --> 00:02:07.000\n<v Ada>Every cell is enclosed by a membrane.</v>\n\n4\n00:02:07.000 --> 00:02:15.000\nThe membrane is a double layer\nof lipids.\n\n5\n00:03:10.000 --> 00:03:18.000\nSmall molecules pass the membrane by diffusion.\n\n6\n00:04:00.000 --> 00:04:08.000\nWater moves by Osmosis, towards the higher concentration of solutes.\n\n7\n00:05:00.000 --> 00:05:06.000\nLarger molecules need transport proteins.\n\n8\n00:05:06.000 --> 00:05:14.000\nActive transport uses energy to move molecules against the gradient.\n\n9\n00:08:30.000 --> 00:08:40.000\nTo sum up: diffusion, osmosis and active transport.\n"
+                ]
+            },
+            "after": [
+                {
+                    "op": "replace",
+                    "path": "/subtitles/en",
+                    "value": "WEBVTT\n\n00:00:01.000 --> 00:00:06.000\nWelcome to lecture three.\n"
+                }
+            ]
+        },
+        {
+            "name": "set_subtitles: a language added",
+            "op": {
+                "op": "set_subtitles",
+                "input": {
+                    "lang": "de",
+                    "vtt": "WEBVTT\n\n00:00:01.000 --> 00:00:06.000\nWillkommen zur dritten Vorlesung.\n\n00:00:06.000 --> 00:00:12.500\nHeute geht es um Membranen.\n"
+                }
+            },
+            "result": { "lang": "de", "src": "de.vtt", "cues": 2 },
+            "inverse": { "method": "setSubtitles", "args": ["de", null] },
+            "after": [
+                { "op": "add", "path": "/hypervideo/subtitles/1", "value": { "src": "de.vtt", "srclang": "de" } },
+                {
+                    "op": "add",
+                    "path": "/subtitles/de",
+                    "value": "WEBVTT\n\n00:00:01.000 --> 00:00:06.000\nWillkommen zur dritten Vorlesung.\n\n00:00:06.000 --> 00:00:12.500\nHeute geht es um Membranen.\n"
+                }
+            ]
+        },
+        {
+            "name": "set_subtitles: removed",
+            "op": { "op": "set_subtitles", "input": { "lang": "en", "vtt": null } },
+            "result": { "lang": "en", "src": null, "cues": 0 },
+            "inverse": {
+                "method": "setSubtitles",
+                "args": [
+                    "en",
+                    "WEBVTT\n\nNOTE Lecture 3, transcribed by hand\n\n1\n00:00:01.000 --> 00:00:06.000\nWelcome to the third lecture on cell biology.\n\n2\n00:00:06.000 --> 00:00:12.500\nToday we look at membranes &amp; transport.\n\n3\n00:02:00.000 --> 00:02:07.000\n<v Ada>Every cell is enclosed by a membrane.</v>\n\n4\n00:02:07.000 --> 00:02:15.000\nThe membrane is a double layer\nof lipids.\n\n5\n00:03:10.000 --> 00:03:18.000\nSmall molecules pass the membrane by diffusion.\n\n6\n00:04:00.000 --> 00:04:08.000\nWater moves by Osmosis, towards the higher concentration of solutes.\n\n7\n00:05:00.000 --> 00:05:06.000\nLarger molecules need transport proteins.\n\n8\n00:05:06.000 --> 00:05:14.000\nActive transport uses energy to move molecules against the gradient.\n\n9\n00:08:30.000 --> 00:08:40.000\nTo sum up: diffusion, osmosis and active transport.\n"
+                ]
+            },
+            "after": [{ "op": "remove", "path": "/hypervideo/subtitles/0" }, { "op": "remove", "path": "/subtitles/en" }]
+        },
+        {
+            "name": "set_subtitles: removing a language that has none changes nothing",
+            "op": { "op": "set_subtitles", "input": { "lang": "fr", "vtt": null } },
+            "result": { "lang": "fr", "src": null, "cues": 0 },
+            "inverse": null,
+            "after": []
+        },
+        {
+            "name": "set_subtitles: not WebVTT",
+            "op": { "op": "set_subtitles", "input": { "lang": "en", "vtt": "1\n00:00:01,000 --> 00:00:06,000\nSRT\n" } },
+            "error": { "code": "invalid", "errors": [{ "path": "/vtt", "message": "must begin with WEBVTT" }] }
+        },
+        {
+            "name": "set_subtitles: a language code with a space",
+            "op": { "op": "set_subtitles", "input": { "lang": "en us", "vtt": "WEBVTT\n" } },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/lang", "message": "must match the pattern ^[A-Za-z0-9_-]{1,32}$" }]
+            }
+        },
+        {
+            "name": "set_subtitles: only the hypervideo's creator or an admin",
+            "user": { "id": "2", "name": "Grace", "role": "user" },
+            "op": { "op": "set_subtitles", "input": { "lang": "de", "vtt": "WEBVTT\n" } },
+            "error": { "code": "notAllowed" }
+        },
+        {
+            "name": "set_layout_area: chapters above the video",
+            "op": {
+                "op": "set_layout_area",
+                "input": { "area": "top", "contentViews": [{ "type": "Chapters", "name": "Chapters" }] }
+            },
+            "result": { "area": "top", "contentViews": [{ "type": "Chapters", "name": "Chapters" }] },
+            "inverse": { "method": "setLayout", "args": ["top", []] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideo/config/layoutArea/areaTop/0",
+                    "value": { "type": "Chapters", "name": "Chapters" }
+                }
+            ]
+        },
+        {
+            "name": "set_layout_area: an area emptied",
+            "op": { "op": "set_layout_area", "input": { "area": "right", "contentViews": [] } },
+            "result": { "area": "right", "contentViews": [] },
+            "inverse": {
+                "method": "setLayout",
+                "args": [
+                    "right",
+                    [
+                        {
+                            "type": "Transcript",
+                            "name": "Transcript",
+                            "transcriptSource": "en",
+                            "showTranscriptSearch": true
+                        }
+                    ]
+                ]
+            },
+            "after": [{ "op": "remove", "path": "/hypervideo/config/layoutArea/areaRight/0" }]
+        },
+        {
+            "name": "set_layout_area: an unknown view",
+            "op": {
+                "op": "set_layout_area",
+                "input": { "area": "left", "contentViews": [{ "type": "Chapters" }, { "type": "Gallery" }] }
+            },
+            "error": {
+                "code": "invalid",
+                "errors": [
+                    {
+                        "path": "/contentViews/1/type",
+                        "message": "must be one of \"TimedContent\", \"CustomHTML\", \"Transcript\", \"Timelines\", \"Chapters\""
+                    }
+                ]
+            }
+        },
+        {
+            "name": "set_layout_area: an unknown area",
+            "op": { "op": "set_layout_area", "input": { "area": "middle", "contentViews": [] } },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/area", "message": "must be one of \"top\", \"bottom\", \"left\", \"right\"" }]
+            }
+        }
+    ]
+}

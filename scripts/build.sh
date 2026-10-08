@@ -19,6 +19,7 @@ set -e
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CLIENT_DIR="$ROOT_DIR/client"
 SERVER_DIR="$ROOT_DIR/server"
+SHARED_DIR="$ROOT_DIR/shared"
 BUILD_DIR="$ROOT_DIR/build"
 
 NAME="conversational-ui"
@@ -50,8 +51,29 @@ JS_FILES=(
     "locale/de.js"
     "locale/fr.js"
 
+    # Operations
+    "ops/util.js"
+    "ops/items.js"
+    "ops/model-store.js"
+    "ops/live-store.js"
+    "ops/interpreter.js"
+
+    # Lint rules
+    "lint/lint.js"
+
     # Extension entry
     "module.js"
+)
+
+#  Shared data (relative to shared/), written into
+#  the bundle right after namespace.js as properties
+#  of the global: "<property>:<file>". The server part
+#  reads the same files from build/server/shared/.
+
+SHARED_DATA=(
+    "operations:operations.json"
+    "changesetSchema:changeset.schema.json"
+    "lintRules:lint.json"
 )
 
 CSS_FILES=(
@@ -83,10 +105,30 @@ concat() {
         echo "/* === $f === */" >> "$out"
         cat "$CLIENT_DIR/$f" >> "$out"
         echo "$separator" >> "$out"
+        if [ "$separator" = ";" ] && [ "$f" = "namespace.js" ]; then
+            embed_shared "$out"
+        fi
     done
 }
 
-echo "Concatenating JS (${#JS_FILES[@]} files)..."
+# The shared data as JavaScript: JSON is an expression.
+embed_shared() {
+    local out="$1" entry property file
+    for entry in "${SHARED_DATA[@]}"; do
+        property="${entry%%:*}"
+        file="${entry#*:}"
+        if [ ! -f "$SHARED_DIR/$file" ]; then
+            echo "ERROR: missing shared file: $file" >&2
+            exit 1
+        fi
+        echo "/* === shared/$file === */" >> "$out"
+        printf 'window.FrameTrailConversationalUI.%s = ' "$property" >> "$out"
+        cat "$SHARED_DIR/$file" >> "$out"
+        echo ";" >> "$out"
+    done
+}
+
+echo "Concatenating JS (${#JS_FILES[@]} files, ${#SHARED_DATA[@]} shared)..."
 concat "$BUILD_DIR/client/$BUNDLE.js" ";" "${JS_FILES[@]}"
 
 echo "Concatenating CSS (${#CSS_FILES[@]} files)..."
@@ -102,6 +144,12 @@ echo "Copying the server part..."
 cp -R "$SERVER_DIR/." "$BUILD_DIR/server/"
 find "$BUILD_DIR/server" -name ".DS_Store" -delete
 cp "$ROOT_DIR/LICENSE" "$BUILD_DIR/server/"
+
+# The shared data the server reads at run time (server/lib/shared.php)
+mkdir -p "$BUILD_DIR/server/shared"
+for entry in "${SHARED_DATA[@]}"; do
+    cp "$SHARED_DIR/${entry#*:}" "$BUILD_DIR/server/shared/"
+done
 
 # ──────────────────────────────────────────────
 #  Version

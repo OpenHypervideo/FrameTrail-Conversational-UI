@@ -21,3 +21,5 @@ node_modules/
 
 # Build output
 build/
+# A FrameTrail checkout, as CI makes one for the tests
+/frametrail/

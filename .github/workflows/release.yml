@@ -14,10 +14,20 @@ jobs:
 
     env:
       VERSION: ${{ github.ref_name }}
+      # The FrameTrail release whose pure scripts, fixtures and schemas the tests load (as in build.yml).
+      FRAMETRAIL_REF: v1.4.1
+      FRAMETRAIL_DIR: frametrail
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Checkout FrameTrail
+        uses: actions/checkout@v4
+        with:
+          repository: OpenHypervideo/FrameTrail
+          ref: ${{ env.FRAMETRAIL_REF }}
+          path: ${{ env.FRAMETRAIL_DIR }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

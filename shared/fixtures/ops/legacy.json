@@ -1,0 +1,372 @@
+{
+    "description": "An older hypervideo: items made in the same second told apart, older shapes and unknown properties kept, the files written in the current form once they change.",
+    "data": "legacy",
+    "user": { "id": "1", "name": "Ada", "role": "user" },
+    "generator": {
+        "type": "Software",
+        "name": "FrameTrail-Conversational-UI",
+        "model": "mistral-medium-latest",
+        "provider": "mistral"
+    },
+    "now": 1792000000000,
+    "cases": [
+        {
+            "name": "list_items: the second item of the same second is 1 ms later",
+            "op": { "op": "list_items", "input": {} },
+            "result": {
+                "items": [
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:00.000Z",
+                        "type": "text",
+                        "name": "First",
+                        "start": 1,
+                        "end": 5,
+                        "box": { "left": 5, "top": 5, "width": 30, "height": 10 }
+                    },
+                    {
+                        "kind": "annotations",
+                        "ref": "2026-10-01T10:30:00.000Z",
+                        "creator": { "nickname": "Ada", "id": "1" },
+                        "own": true,
+                        "type": "text",
+                        "name": "Old note",
+                        "start": 2,
+                        "end": 12,
+                        "text": "An annotation from an older version"
+                    },
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:00.001Z",
+                        "type": "text",
+                        "name": "Second",
+                        "start": 6,
+                        "end": 10,
+                        "box": { "left": 5, "top": 50, "width": 30, "height": 10 },
+                        "text": "Made in the same second as the first"
+                    }
+                ],
+                "total": 3
+            }
+        },
+        {
+            "name": "inspect_hypervideo: the video from its resource, the duration from its clip",
+            "op": { "op": "inspect_hypervideo", "input": {} },
+            "result": {
+                "id": "9",
+                "name": "An older hypervideo",
+                "video": "9_1700000000_older-video.mp4",
+                "duration": 30,
+                "timeRange": { "start": 0, "end": 30 },
+                "subtitles": [],
+                "layout": { "top": [], "bottom": [], "left": [], "right": [] },
+                "counts": { "overlays": 2, "annotations": 1, "ownAnnotations": 1, "chapters": 0, "codeSnippets": 0 },
+                "overlayTypes": { "text": 2 },
+                "timeMap": [{ "start": 0, "end": 30, "overlays": 2, "annotations": 1 }],
+                "user": { "id": "1", "name": "Ada", "role": "user", "guest": false },
+                "canEdit": true,
+                "canAnnotate": true,
+                "description": "",
+                "creator": { "nickname": "Ada", "id": "1" }
+            }
+        },
+        {
+            "name": "update_overlay: hypervideo.json written in the current form, what is unknown kept",
+            "op": {
+                "op": "update_overlay",
+                "input": {
+                    "ref": "2026-10-01T10:00:00.001Z",
+                    "body": { "frametrail:attributes": { "text": "&lt;p&gt;Changed&lt;/p&gt;" } }
+                }
+            },
+            "result": {
+                "kind": "overlays",
+                "ref": "2026-10-01T10:00:00.001Z",
+                "type": "text",
+                "name": "Second",
+                "start": 6,
+                "end": 10,
+                "box": { "left": 5, "top": 50, "width": 30, "height": 10 },
+                "text": "Changed"
+            },
+            "inverse": {
+                "method": "update",
+                "args": [
+                    "overlays",
+                    "2026-10-01T10:00:00.001Z",
+                    {
+                        "generator": null,
+                        "body": {
+                            "frametrail:attributes": { "text": "&lt;p&gt;Made in the same second as the first&lt;/p&gt;" }
+                        }
+                    }
+                ]
+            },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/0/@context/1",
+                    "value": "https://frametrail.org/ns/context.jsonld"
+                },
+                { "op": "remove", "path": "/hypervideo/contents/0/@context/2" },
+                { "op": "replace", "path": "/hypervideo/contents/0/created", "value": "2026-10-01T10:00:00.000Z" },
+                {
+                    "op": "replace",
+                    "path": "/hypervideo/contents/0/target/source",
+                    "value": "9_1700000000_older-video.mp4"
+                },
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/1",
+                    "value": {
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
+                        "creator": { "nickname": "Ada", "type": "Person", "id": 1 },
+                        "created": "2026-10-01T10:00:00.001Z",
+                        "type": "Annotation",
+                        "frametrail:type": "Overlay",
+                        "frametrail:tags": [],
+                        "target": {
+                            "type": "Video",
+                            "source": "9_1700000000_older-video.mp4",
+                            "selector": {
+                                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                                "type": "FragmentSelector",
+                                "value": "t=6,10&xywh=percent:5,50,30,10"
+                            }
+                        },
+                        "body": {
+                            "type": "TextualBody",
+                            "frametrail:type": "text",
+                            "format": "text/html",
+                            "value": "",
+                            "frametrail:name": "Second",
+                            "frametrail:thumb": null,
+                            "frametrail:attributes": { "text": "&lt;p&gt;Changed&lt;/p&gt;" }
+                        },
+                        "frametrail:events": [],
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        }
+                    }
+                },
+                { "op": "remove", "path": "/hypervideo/contents/2" }
+            ]
+        },
+        {
+            "name": "update_overlay: attributes stored as [] get the new ones",
+            "op": {
+                "op": "update_overlay",
+                "input": { "ref": "2026-10-01T10:00:00.000Z", "body": { "frametrail:attributes": { "text": "Now with text" } } }
+            },
+            "result": {
+                "kind": "overlays",
+                "ref": "2026-10-01T10:00:00.000Z",
+                "type": "text",
+                "name": "First",
+                "start": 1,
+                "end": 5,
+                "box": { "left": 5, "top": 5, "width": 30, "height": 10 },
+                "text": "Now with text"
+            },
+            "inverse": {
+                "method": "update",
+                "args": ["overlays", "2026-10-01T10:00:00.000Z", { "generator": null, "body": { "frametrail:attributes": [] } }]
+            },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/0/@context/1",
+                    "value": "https://frametrail.org/ns/context.jsonld"
+                },
+                { "op": "remove", "path": "/hypervideo/contents/0/@context/2" },
+                { "op": "replace", "path": "/hypervideo/contents/0/created", "value": "2026-10-01T10:00:00.000Z" },
+                {
+                    "op": "replace",
+                    "path": "/hypervideo/contents/0/target/source",
+                    "value": "9_1700000000_older-video.mp4"
+                },
+                {
+                    "op": "replace",
+                    "path": "/hypervideo/contents/0/body/frametrail:attributes",
+                    "value": { "text": "Now with text" }
+                },
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/0/generator",
+                    "value": {
+                        "type": "Software",
+                        "name": "FrameTrail-Conversational-UI",
+                        "model": "mistral-medium-latest",
+                        "provider": "mistral"
+                    }
+                },
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/1",
+                    "value": {
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
+                        "creator": { "nickname": "Ada", "type": "Person", "id": 1 },
+                        "created": "2026-10-01T10:00:00.001Z",
+                        "type": "Annotation",
+                        "frametrail:type": "Overlay",
+                        "frametrail:tags": [],
+                        "target": {
+                            "type": "Video",
+                            "source": "9_1700000000_older-video.mp4",
+                            "selector": {
+                                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                                "type": "FragmentSelector",
+                                "value": "t=6,10&xywh=percent:5,50,30,10"
+                            }
+                        },
+                        "body": {
+                            "type": "TextualBody",
+                            "frametrail:type": "text",
+                            "format": "text/html",
+                            "value": "",
+                            "frametrail:name": "Second",
+                            "frametrail:thumb": null,
+                            "frametrail:attributes": { "text": "&lt;p&gt;Made in the same second as the first&lt;/p&gt;" }
+                        },
+                        "frametrail:events": []
+                    }
+                },
+                { "op": "remove", "path": "/hypervideo/contents/2" }
+            ]
+        },
+        {
+            "name": "add_annotation: the user's file written in the current form, the index left alone",
+            "op": {
+                "op": "add_annotation",
+                "input": {
+                    "start": 20,
+                    "end": 25,
+                    "body": { "frametrail:type": "text", "frametrail:attributes": { "text": "New" } }
+                }
+            },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-14T17:46:40.000Z",
+                "creator": { "nickname": "Ada", "id": "1" },
+                "own": true,
+                "type": "text",
+                "start": 20,
+                "end": 25,
+                "text": "New"
+            },
+            "inverse": { "method": "remove", "args": ["annotations", "2026-10-14T17:46:40.000Z"] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/annotations/files/1/0/@context/1",
+                    "value": "https://frametrail.org/ns/context.jsonld"
+                },
+                { "op": "remove", "path": "/annotations/files/1/0/@context/2" },
+                { "op": "replace", "path": "/annotations/files/1/0/created", "value": "2026-10-01T10:30:00.000Z" },
+                {
+                    "op": "replace",
+                    "path": "/annotations/files/1/0/target/source",
+                    "value": "9_1700000000_older-video.mp4"
+                },
+                {
+                    "op": "add",
+                    "path": "/annotations/files/1/1",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=20,25",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "9_1700000000_older-video.mp4"
+                        },
+                        "body": { "frametrail:type": "text", "frametrail:attributes": { "text": "New" } },
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Annotation",
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-14T17:46:40.000Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "the versions of an older index",
+            "changeset": {
+                "baseVersion": { "hypervideo": 1700000100000, "annotations": 1700000200 },
+                "ops": [{ "op": "add_chapter", "input": { "start": 5, "title": "Five" } }]
+            },
+            "results": [{ "kind": "chapters", "ref": 5, "title": "Five", "start": 5, "end": 30 }],
+            "inverses": [{ "method": "remove", "args": ["chapters", 5] }],
+            "applied": {
+                "hypervideoId": "9",
+                "baseVersion": { "hypervideo": 1700000100000 },
+                "createdBy": "1",
+                "summary": "add_chapter",
+                "generator": {
+                    "type": "Software",
+                    "name": "FrameTrail-Conversational-UI",
+                    "model": "mistral-medium-latest",
+                    "provider": "mistral"
+                }
+            },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/0/@context/1",
+                    "value": "https://frametrail.org/ns/context.jsonld"
+                },
+                { "op": "remove", "path": "/hypervideo/contents/0/@context/2" },
+                { "op": "replace", "path": "/hypervideo/contents/0/created", "value": "2026-10-01T10:00:00.000Z" },
+                {
+                    "op": "replace",
+                    "path": "/hypervideo/contents/0/target/source",
+                    "value": "9_1700000000_older-video.mp4"
+                },
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/1",
+                    "value": {
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
+                        "creator": { "nickname": "Ada", "type": "Person", "id": 1 },
+                        "created": "2026-10-01T10:00:00.001Z",
+                        "type": "Annotation",
+                        "frametrail:type": "Overlay",
+                        "frametrail:tags": [],
+                        "target": {
+                            "type": "Video",
+                            "source": "9_1700000000_older-video.mp4",
+                            "selector": {
+                                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                                "type": "FragmentSelector",
+                                "value": "t=6,10&xywh=percent:5,50,30,10"
+                            }
+                        },
+                        "body": {
+                            "type": "TextualBody",
+                            "frametrail:type": "text",
+                            "format": "text/html",
+                            "value": "",
+                            "frametrail:name": "Second",
+                            "frametrail:thumb": null,
+                            "frametrail:attributes": { "text": "&lt;p&gt;Made in the same second as the first&lt;/p&gt;" }
+                        },
+                        "frametrail:events": []
+                    }
+                },
+                { "op": "remove", "path": "/hypervideo/contents/2" },
+                { "op": "add", "path": "/hypervideo/chapters", "value": [{ "start": 5, "title": "Five" }] }
+            ]
+        }
+    ]
+}

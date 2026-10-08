@@ -1,0 +1,79 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/OpenHypervideo/FrameTrail-Conversational-UI/main/shared/operations.schema.json",
+    "title": "Operations manifest",
+    "description": "shared/operations.json: what an agent can do with a hypervideo, defined once for the JavaScript and the PHP interpreter, the MCP tools and the chat panel's tools. Written in the subset of JSON Schema that FrameTrailSchema implements (FrameTrail's docs/DATA-MODEL.md, Schema Subset), like the input and output schemas it contains.",
+    "type": "object",
+    "required": ["formatVersion", "$defs", "operations"],
+    "additionalProperties": false,
+    "properties": {
+        "formatVersion": {
+            "description": "Version of this format.",
+            "type": "integer",
+            "const": 1
+        },
+        "$defs": {
+            "description": "Schemas the operations' input and output schemas share, referred to as \"#/$defs/<name>\". Names contain no \"-\".",
+            "type": "object",
+            "additionalProperties": { "type": ["object", "boolean"] }
+        },
+        "operations": {
+            "description": "The operations, each once.",
+            "type": "array",
+            "items": { "$ref": "#/$defs/operation" }
+        }
+    },
+    "$defs": {
+        "operation": {
+            "type": "object",
+            "required": ["name", "description", "kind", "effect", "scope", "preconditions", "input", "output"],
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "description": "The operation's name, also the tool name agents call.",
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,63}$"
+                },
+                "description": {
+                    "description": "What it does, written for a model choosing a tool.",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "What it reads or changes. items: overlays, annotations, chapters and code snippets.",
+                    "type": "string",
+                    "enum": ["hypervideos", "hypervideo", "items", "overlays", "annotations", "chapters", "subtitles", "contentViews"]
+                },
+                "effect": {
+                    "description": "Whether it changes anything. Only write operations go into changesets.",
+                    "type": "string",
+                    "enum": ["read", "write"]
+                },
+                "scope": {
+                    "description": "instance: the installation (no hypervideo). hypervideo: one hypervideo, which surfaces that serve several (MCP) let the caller name.",
+                    "type": "string",
+                    "enum": ["instance", "hypervideo"]
+                },
+                "preconditions": {
+                    "description": "What must hold before it runs, checked in this order after the input. canEditHypervideo: the user may change the hypervideo's overlays, chapters, subtitles and content views (an admin or its creator; in the editor also edit mode and no lock held by someone else); refused with notAllowed. canAnnotate: the user may add annotations and change their own; notAllowed. itemExists: the item the input's ref names exists (for annotations, one of the user's own unless the input names a creator); notFound. chapterStartFree: no other chapter starts at the input's start; invalid at /start. subtitles: the hypervideo has subtitles, in the input's lang if given; notFound.",
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["canEditHypervideo", "canAnnotate", "itemExists", "chapterStartFree", "subtitles"]
+                    }
+                },
+                "input": {
+                    "description": "JSON Schema of the input: an object. References to FrameTrail's schemas are absolute (https://frametrail.org/schemas/1/…), references to the manifest's $defs are \"#/$defs/<name>\".",
+                    "type": "object",
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "object" }
+                    }
+                },
+                "output": {
+                    "description": "JSON Schema of the result, with references as in input.",
+                    "type": "object"
+                }
+            }
+        }
+    }
+}

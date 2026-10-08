@@ -1,0 +1,81 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/OpenHypervideo/FrameTrail-Conversational-UI/main/shared/changeset.schema.json",
+    "title": "Changeset",
+    "description": "Write operations (shared/operations.json) applied to one hypervideo together: all of them or none. Given to an interpreter, a changeset needs only ops (each op and input); applied, it comes back complete, with each op's inverse, so it can be shown, stored and undone. Written in the subset of JSON Schema that FrameTrailSchema implements.",
+    "type": "object",
+    "required": ["ops"],
+    "properties": {
+        "id": {
+            "description": "Identifies the changeset, e.g. in a history. Made up when applied without one.",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "hypervideoId": {
+            "description": "The hypervideo it changes. Given, it must be the one the interpreter works on; applied, it is always set.",
+            "type": "string"
+        },
+        "baseVersion": {
+            "description": "Given: apply only if the files are still at these versions, otherwise refuse with conflict. Applied: the versions of the files it changes before it was applied. hypervideo is meta.lastchanged of hypervideo.json; annotations is lastchanged of the user's entry in annotations/_index.json (0 while they have no annotation file). A version that is not known is left out.",
+            "type": "object",
+            "properties": {
+                "hypervideo":  { "type": "number" },
+                "annotations": { "type": "number" }
+            }
+        },
+        "createdBy": {
+            "description": "Id of the user who applied it: the creator of the items it adds. Set when applied.",
+            "type": "string"
+        },
+        "generator": {
+            "$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/generator",
+            "description": "The software that made the changes, written as the W3C generator of every overlay and annotation the changeset adds or changes. The editor's chat panel: { \"type\": \"Software\", \"name\": \"FrameTrail-Conversational-UI\", \"model\": …, \"provider\": \"mistral\" }."
+        },
+        "summary": {
+            "description": "What it does, in a few words: the undo step's description in the editor. The names of its operations when not given.",
+            "type": "string"
+        },
+        "ops": {
+            "description": "The write operations, applied in this order.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["op", "input"],
+                "properties": {
+                    "op": {
+                        "description": "Name of a write operation.",
+                        "type": "string"
+                    },
+                    "input": {
+                        "description": "Its input, as the operation's input schema describes it.",
+                        "type": "object"
+                    },
+                    "inverse": {
+                        "description": "Set when applied: what takes the operation back, as a call of the edit interface FrameTrail's edit API and the interpreters' stores share; null when the operation changed nothing. Given, it is ignored.",
+                        "oneOf": [
+                            { "type": "null" },
+                            { "$ref": "#/$defs/call" }
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "$defs": {
+        "call": {
+            "type": "object",
+            "required": ["method", "args"],
+            "properties": {
+                "method": {
+                    "description": "add(kind, item), update(kind, ref, mergePatch), remove(kind, ref), setLayout(area, contentViews), setSubtitles(lang, vttOrNull). Kinds: overlays, annotations, chapters; refs: created, or a chapter's start.",
+                    "type": "string",
+                    "enum": ["add", "update", "remove", "setLayout", "setSubtitles"]
+                },
+                "args": {
+                    "description": "The call's arguments, in order.",
+                    "type": "array"
+                }
+            }
+        }
+    }
+}

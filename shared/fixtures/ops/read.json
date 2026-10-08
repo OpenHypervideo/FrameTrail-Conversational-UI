@@ -1,0 +1,654 @@
+{
+    "description": "The read operations on a lecture: summary, items in short and in full, the transcript.",
+    "data": "lecture",
+    "user": { "id": "1", "name": "Ada", "role": "user" },
+    "duration": 600,
+    "cases": [
+        {
+            "name": "inspect_hypervideo as its creator",
+            "op": { "op": "inspect_hypervideo", "input": {} },
+            "result": {
+                "id": "1",
+                "name": "Cell Biology, Lecture 3",
+                "video": "1_1790000000_lecture-3.mp4",
+                "duration": 600,
+                "timeRange": { "start": 0, "end": 600 },
+                "subtitles": ["en"],
+                "layout": {
+                    "top": [],
+                    "bottom": [{ "type": "TimedContent", "name": "Notes" }],
+                    "left": [],
+                    "right": [{ "type": "Transcript", "name": "Transcript" }]
+                },
+                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3, "codeSnippets": 1 },
+                "overlayTypes": { "text": 1, "hotspot": 2, "image": 1 },
+                "timeMap": [
+                    { "start": 0, "end": 120, "chapter": "Introduction", "overlays": 2, "annotations": 1 },
+                    { "start": 120, "end": 300, "chapter": "Membranes", "overlays": 2, "annotations": 2 },
+                    { "start": 300, "end": 600, "chapter": "Transport", "overlays": 0, "annotations": 0 }
+                ],
+                "user": { "id": "1", "name": "Ada", "role": "user", "guest": false },
+                "canEdit": true,
+                "canAnnotate": true,
+                "description": "How substances cross the cell membrane.",
+                "creator": { "nickname": "Ada", "id": "1" }
+            }
+        },
+        {
+            "name": "inspect_hypervideo as someone else",
+            "user": { "id": "2", "name": "Grace", "role": "user" },
+            "op": { "op": "inspect_hypervideo", "input": {} },
+            "result": {
+                "id": "1",
+                "name": "Cell Biology, Lecture 3",
+                "video": "1_1790000000_lecture-3.mp4",
+                "duration": 600,
+                "timeRange": { "start": 0, "end": 600 },
+                "subtitles": ["en"],
+                "layout": {
+                    "top": [],
+                    "bottom": [{ "type": "TimedContent", "name": "Notes" }],
+                    "left": [],
+                    "right": [{ "type": "Transcript", "name": "Transcript" }]
+                },
+                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 1, "chapters": 3, "codeSnippets": 1 },
+                "overlayTypes": { "text": 1, "hotspot": 2, "image": 1 },
+                "timeMap": [
+                    { "start": 0, "end": 120, "chapter": "Introduction", "overlays": 2, "annotations": 1 },
+                    { "start": 120, "end": 300, "chapter": "Membranes", "overlays": 2, "annotations": 2 },
+                    { "start": 300, "end": 600, "chapter": "Transport", "overlays": 0, "annotations": 0 }
+                ],
+                "user": { "id": "2", "name": "Grace", "role": "user", "guest": false },
+                "canEdit": false,
+                "canAnnotate": true,
+                "description": "How substances cross the cell membrane.",
+                "creator": { "nickname": "Ada", "id": "1" }
+            }
+        },
+        {
+            "name": "inspect_hypervideo without the media's duration",
+            "duration": null,
+            "op": { "op": "inspect_hypervideo", "input": {} },
+            "result": {
+                "id": "1",
+                "name": "Cell Biology, Lecture 3",
+                "video": "1_1790000000_lecture-3.mp4",
+                "duration": null,
+                "timeRange": { "start": 0, "end": null },
+                "subtitles": ["en"],
+                "layout": {
+                    "top": [],
+                    "bottom": [{ "type": "TimedContent", "name": "Notes" }],
+                    "left": [],
+                    "right": [{ "type": "Transcript", "name": "Transcript" }]
+                },
+                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3, "codeSnippets": 1 },
+                "overlayTypes": { "text": 1, "hotspot": 2, "image": 1 },
+                "timeMap": [
+                    { "start": 0, "end": 120, "chapter": "Introduction", "overlays": 2, "annotations": 1 },
+                    { "start": 120, "end": 300, "chapter": "Membranes", "overlays": 2, "annotations": 2 },
+                    { "start": 300, "end": null, "chapter": "Transport", "overlays": 0, "annotations": 0 }
+                ],
+                "user": { "id": "1", "name": "Ada", "role": "user", "guest": false },
+                "canEdit": true,
+                "canAnnotate": true,
+                "description": "How substances cross the cell membrane.",
+                "creator": { "nickname": "Ada", "id": "1" }
+            }
+        },
+        {
+            "name": "inspect_hypervideo takes no input",
+            "op": { "op": "inspect_hypervideo" },
+            "result": {
+                "id": "1",
+                "name": "Cell Biology, Lecture 3",
+                "video": "1_1790000000_lecture-3.mp4",
+                "duration": 600,
+                "timeRange": { "start": 0, "end": 600 },
+                "subtitles": ["en"],
+                "layout": {
+                    "top": [],
+                    "bottom": [{ "type": "TimedContent", "name": "Notes" }],
+                    "left": [],
+                    "right": [{ "type": "Transcript", "name": "Transcript" }]
+                },
+                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3, "codeSnippets": 1 },
+                "overlayTypes": { "text": 1, "hotspot": 2, "image": 1 },
+                "timeMap": [
+                    { "start": 0, "end": 120, "chapter": "Introduction", "overlays": 2, "annotations": 1 },
+                    { "start": 120, "end": 300, "chapter": "Membranes", "overlays": 2, "annotations": 2 },
+                    { "start": 300, "end": 600, "chapter": "Transport", "overlays": 0, "annotations": 0 }
+                ],
+                "user": { "id": "1", "name": "Ada", "role": "user", "guest": false },
+                "canEdit": true,
+                "canAnnotate": true,
+                "description": "How substances cross the cell membrane.",
+                "creator": { "nickname": "Ada", "id": "1" }
+            }
+        },
+        {
+            "name": "list_items: everything, sorted by start",
+            "op": { "op": "list_items", "input": {} },
+            "result": {
+                "items": [
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:00.000Z",
+                        "type": "text",
+                        "name": "Title card",
+                        "start": 0,
+                        "end": 8,
+                        "box": { "left": 10, "top": 10, "width": 50, "height": 20 },
+                        "text": "Membranes: How substances cross the cell membrane",
+                        "tags": ["intro"]
+                    },
+                    { "kind": "chapters", "ref": 0, "title": "Introduction", "start": 0, "end": 120 },
+                    {
+                        "kind": "annotations",
+                        "ref": "2026-10-02T09:00:00.000Z",
+                        "creator": { "nickname": "Ada", "id": "1" },
+                        "own": true,
+                        "type": "text",
+                        "name": "Key term",
+                        "start": 10,
+                        "end": 40,
+                        "text": "A membrane separates the cell from its surroundings."
+                    },
+                    {
+                        "kind": "codeSnippets",
+                        "ref": "2026-10-01T10:00:04.000Z",
+                        "name": "Pause for a question",
+                        "start": 60
+                    },
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:01.000Z",
+                        "type": "hotspot",
+                        "name": "Jump to transport",
+                        "start": 95,
+                        "end": 110,
+                        "box": { "left": 70, "top": 70, "width": 20, "height": 15 },
+                        "text": "Transport"
+                    },
+                    { "kind": "chapters", "ref": 120, "title": "Membranes", "start": 120, "end": 300 },
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:02.000Z",
+                        "type": "image",
+                        "name": "Membrane diagram",
+                        "start": 130,
+                        "end": 180,
+                        "box": { "left": 55, "top": 10, "width": 40, "height": 50 },
+                        "rotation": 5,
+                        "src": "1_1790000100_membrane.png"
+                    },
+                    {
+                        "kind": "annotations",
+                        "ref": "2026-10-02T09:00:01.000Z",
+                        "creator": { "nickname": "Ada", "id": "1" },
+                        "own": true,
+                        "type": "wikipedia",
+                        "name": "Cell membrane",
+                        "start": 130,
+                        "end": 170,
+                        "src": "https://en.wikipedia.org/wiki/Cell_membrane",
+                        "tags": ["reading"]
+                    },
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:03.000Z",
+                        "type": "hotspot",
+                        "name": "Moving pointer",
+                        "start": 200,
+                        "end": 230,
+                        "box": { "left": 10, "top": 10, "width": 60, "height": 40 },
+                        "moving": true,
+                        "text": "Protein"
+                    },
+                    {
+                        "kind": "annotations",
+                        "ref": "2026-10-02T09:00:00.000Z",
+                        "creator": { "nickname": "Grace", "id": "2" },
+                        "own": false,
+                        "type": "text",
+                        "name": "Question",
+                        "start": 250,
+                        "end": 280,
+                        "text": "Does osmosis need energy?"
+                    },
+                    { "kind": "chapters", "ref": 300, "title": "Transport", "start": 300, "end": 600 }
+                ],
+                "total": 11
+            }
+        },
+        {
+            "name": "list_items: overlays that overlap a time span",
+            "op": { "op": "list_items", "input": { "kind": "overlays", "from": 100, "to": 200 } },
+            "result": {
+                "items": [
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:01.000Z",
+                        "type": "hotspot",
+                        "name": "Jump to transport",
+                        "start": 95,
+                        "end": 110,
+                        "box": { "left": 70, "top": 70, "width": 20, "height": 15 },
+                        "text": "Transport"
+                    },
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:02.000Z",
+                        "type": "image",
+                        "name": "Membrane diagram",
+                        "start": 130,
+                        "end": 180,
+                        "box": { "left": 55, "top": 10, "width": 40, "height": 50 },
+                        "rotation": 5,
+                        "src": "1_1790000100_membrane.png"
+                    },
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:03.000Z",
+                        "type": "hotspot",
+                        "name": "Moving pointer",
+                        "start": 200,
+                        "end": 230,
+                        "box": { "left": 10, "top": 10, "width": 60, "height": 40 },
+                        "moving": true,
+                        "text": "Protein"
+                    }
+                ],
+                "total": 3
+            }
+        },
+        {
+            "name": "list_items: annotations by one creator",
+            "op": { "op": "list_items", "input": { "kind": "annotations", "creator": "2" } },
+            "result": {
+                "items": [
+                    {
+                        "kind": "annotations",
+                        "ref": "2026-10-02T09:00:00.000Z",
+                        "creator": { "nickname": "Grace", "id": "2" },
+                        "own": false,
+                        "type": "text",
+                        "name": "Question",
+                        "start": 250,
+                        "end": 280,
+                        "text": "Does osmosis need energy?"
+                    }
+                ],
+                "total": 1
+            }
+        },
+        {
+            "name": "list_items: by type",
+            "op": { "op": "list_items", "input": { "type": "hotspot" } },
+            "result": {
+                "items": [
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:01.000Z",
+                        "type": "hotspot",
+                        "name": "Jump to transport",
+                        "start": 95,
+                        "end": 110,
+                        "box": { "left": 70, "top": 70, "width": 20, "height": 15 },
+                        "text": "Transport"
+                    },
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:03.000Z",
+                        "type": "hotspot",
+                        "name": "Moving pointer",
+                        "start": 200,
+                        "end": 230,
+                        "box": { "left": 10, "top": 10, "width": 60, "height": 40 },
+                        "moving": true,
+                        "text": "Protein"
+                    }
+                ],
+                "total": 2
+            }
+        },
+        {
+            "name": "list_items: chapters with their ends",
+            "op": { "op": "list_items", "input": { "kind": "chapters" } },
+            "result": {
+                "items": [
+                    { "kind": "chapters", "ref": 0, "title": "Introduction", "start": 0, "end": 120 },
+                    { "kind": "chapters", "ref": 120, "title": "Membranes", "start": 120, "end": 300 },
+                    { "kind": "chapters", "ref": 300, "title": "Transport", "start": 300, "end": 600 }
+                ],
+                "total": 3
+            }
+        },
+        {
+            "name": "list_items: a limit, with the total",
+            "op": { "op": "list_items", "input": { "limit": 2 } },
+            "result": {
+                "items": [
+                    {
+                        "kind": "overlays",
+                        "ref": "2026-10-01T10:00:00.000Z",
+                        "type": "text",
+                        "name": "Title card",
+                        "start": 0,
+                        "end": 8,
+                        "box": { "left": 10, "top": 10, "width": 50, "height": 20 },
+                        "text": "Membranes: How substances cross the cell membrane",
+                        "tags": ["intro"]
+                    },
+                    { "kind": "chapters", "ref": 0, "title": "Introduction", "start": 0, "end": 120 }
+                ],
+                "total": 11
+            }
+        },
+        {
+            "name": "list_items: limit 0 is refused",
+            "op": { "op": "list_items", "input": { "limit": 0 } },
+            "error": { "code": "invalid", "errors": [{ "path": "/limit", "message": "must be >= 1" }] }
+        },
+        {
+            "name": "list_items: an unknown kind is refused",
+            "op": { "op": "list_items", "input": { "kind": "comments" } },
+            "error": {
+                "code": "invalid",
+                "errors": [
+                    {
+                        "path": "/kind",
+                        "message": "must be one of \"overlays\", \"annotations\", \"chapters\", \"codeSnippets\""
+                    }
+                ]
+            }
+        },
+        {
+            "name": "get_item: an overlay as stored",
+            "op": { "op": "get_item", "input": { "kind": "overlays", "ref": "2026-10-01T10:00:02.000Z" } },
+            "result": {
+                "item": {
+                    "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
+                    "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                    "created": "2026-10-01T10:00:02.000Z",
+                    "type": "Annotation",
+                    "frametrail:type": "Overlay",
+                    "frametrail:tags": [],
+                    "generator": "https://example.org/another-tool",
+                    "target": {
+                        "type": "Video",
+                        "source": "1_1790000000_lecture-3.mp4",
+                        "selector": {
+                            "conformsTo": "http://www.w3.org/TR/media-frags/",
+                            "type": "FragmentSelector",
+                            "value": "t=130,180&xywh=percent:55,10,40,50",
+                            "frametrail:rotation": 5
+                        }
+                    },
+                    "body": {
+                        "type": "Image",
+                        "frametrail:type": "image",
+                        "format": "image/png",
+                        "source": "1_1790000100_membrane.png",
+                        "frametrail:name": "Membrane diagram",
+                        "frametrail:thumb": "1_1790000100_thumb_membrane.png",
+                        "frametrail:licenseType": "CC-BY-SA",
+                        "frametrail:licenseAttribution": "Example Author",
+                        "frametrail:resourceId": "2",
+                        "frametrail:attributes": {}
+                    },
+                    "frametrail:events": {}
+                }
+            }
+        },
+        {
+            "name": "get_item: a code snippet",
+            "op": { "op": "get_item", "input": { "kind": "codeSnippets", "ref": "2026-10-01T10:00:04.000Z" } },
+            "result": {
+                "item": {
+                    "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
+                    "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                    "created": "2026-10-01T10:00:04.000Z",
+                    "type": "Annotation",
+                    "frametrail:type": "CodeSnippet",
+                    "target": {
+                        "type": "Video",
+                        "source": "1_1790000000_lecture-3.mp4",
+                        "selector": {
+                            "conformsTo": "http://www.w3.org/TR/media-frags/",
+                            "type": "FragmentSelector",
+                            "value": "t=60"
+                        }
+                    },
+                    "body": {
+                        "type": "TextualBody",
+                        "frametrail:type": "codesnippet",
+                        "format": "text/javascript",
+                        "value": "FrameTrail.module('HypervideoController').pause();",
+                        "frametrail:name": "Pause for a question",
+                        "frametrail:thumb": null,
+                        "frametrail:resourceId": null,
+                        "frametrail:attributes": {}
+                    }
+                }
+            }
+        },
+        {
+            "name": "get_item: a chapter by its start",
+            "op": { "op": "get_item", "input": { "kind": "chapters", "ref": 120 } },
+            "result": { "item": { "start": 120, "title": "Membranes" } }
+        },
+        {
+            "name": "get_item: an annotation of the user's own",
+            "op": { "op": "get_item", "input": { "kind": "annotations", "ref": "2026-10-02T09:00:00.000Z" } },
+            "result": {
+                "item": {
+                    "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
+                    "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                    "created": "2026-10-02T09:00:00.000Z",
+                    "type": "Annotation",
+                    "frametrail:type": "Annotation",
+                    "frametrail:tags": [],
+                    "frametrail:uri": null,
+                    "target": {
+                        "type": "Video",
+                        "source": "1_1790000000_lecture-3.mp4",
+                        "selector": {
+                            "conformsTo": "http://www.w3.org/TR/media-frags/",
+                            "type": "FragmentSelector",
+                            "value": "t=10,40"
+                        }
+                    },
+                    "body": {
+                        "type": "TextualBody",
+                        "frametrail:type": "text",
+                        "format": "text/html",
+                        "value": "",
+                        "frametrail:name": "Key term",
+                        "frametrail:attributes": {
+                            "text": "&lt;p&gt;A &lt;b&gt;membrane&lt;/b&gt; separates the cell from its surroundings.&lt;/p&gt;"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "name": "get_item: someone else's annotation with the same created, by its creator",
+            "op": { "op": "get_item", "input": { "kind": "annotations", "ref": "2026-10-02T09:00:00.000Z", "creator": "2" } },
+            "result": {
+                "item": {
+                    "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
+                    "creator": { "nickname": "Grace", "type": "Person", "id": "2" },
+                    "created": "2026-10-02T09:00:00.000Z",
+                    "type": "Annotation",
+                    "frametrail:type": "Annotation",
+                    "frametrail:tags": [],
+                    "frametrail:uri": null,
+                    "target": {
+                        "type": "Video",
+                        "source": "1_1790000000_lecture-3.mp4",
+                        "selector": {
+                            "conformsTo": "http://www.w3.org/TR/media-frags/",
+                            "type": "FragmentSelector",
+                            "value": "t=250,280"
+                        }
+                    },
+                    "body": {
+                        "type": "TextualBody",
+                        "frametrail:type": "text",
+                        "format": "text/html",
+                        "value": "",
+                        "frametrail:name": "Question",
+                        "frametrail:attributes": { "text": "&lt;p&gt;Does osmosis need energy?&lt;/p&gt;" }
+                    }
+                }
+            }
+        },
+        {
+            "name": "get_item: someone else's annotation without its creator is not found",
+            "user": { "id": "2", "name": "Grace", "role": "user" },
+            "op": { "op": "get_item", "input": { "kind": "annotations", "ref": "2026-10-02T09:00:01.000Z" } },
+            "error": { "code": "notFound" }
+        },
+        {
+            "name": "get_item: no such overlay",
+            "op": { "op": "get_item", "input": { "kind": "overlays", "ref": "2020-01-01T00:00:00.000Z" } },
+            "error": { "code": "notFound" }
+        },
+        {
+            "name": "get_item: kind and ref are required",
+            "op": { "op": "get_item", "input": {} },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/kind", "message": "is required" }, { "path": "/ref", "message": "is required" }]
+            }
+        },
+        {
+            "name": "read_transcript: all cues",
+            "op": { "op": "read_transcript", "input": {} },
+            "result": {
+                "lang": "en",
+                "languages": ["en"],
+                "cues": [
+                    { "start": 1, "end": 6, "text": "Welcome to the third lecture on cell biology." },
+                    { "start": 6, "end": 12.5, "text": "Today we look at membranes & transport." },
+                    { "start": 120, "end": 127, "text": "Every cell is enclosed by a membrane." },
+                    { "start": 127, "end": 135, "text": "The membrane is a double layer of lipids." },
+                    { "start": 190, "end": 198, "text": "Small molecules pass the membrane by diffusion." },
+                    {
+                        "start": 240,
+                        "end": 248,
+                        "text": "Water moves by Osmosis, towards the higher concentration of solutes."
+                    },
+                    { "start": 300, "end": 306, "text": "Larger molecules need transport proteins." },
+                    {
+                        "start": 306,
+                        "end": 314,
+                        "text": "Active transport uses energy to move molecules against the gradient."
+                    },
+                    { "start": 510, "end": 520, "text": "To sum up: diffusion, osmosis and active transport." }
+                ],
+                "total": 9
+            }
+        },
+        {
+            "name": "read_transcript: the cues of a time span",
+            "op": { "op": "read_transcript", "input": { "lang": "en", "from": 125, "to": 245 } },
+            "result": {
+                "lang": "en",
+                "languages": ["en"],
+                "cues": [
+                    { "start": 120, "end": 127, "text": "Every cell is enclosed by a membrane." },
+                    { "start": 127, "end": 135, "text": "The membrane is a double layer of lipids." },
+                    { "start": 190, "end": 198, "text": "Small molecules pass the membrane by diffusion." },
+                    {
+                        "start": 240,
+                        "end": 248,
+                        "text": "Water moves by Osmosis, towards the higher concentration of solutes."
+                    }
+                ],
+                "total": 4
+            }
+        },
+        {
+            "name": "read_transcript: a limit, and where to read on",
+            "op": { "op": "read_transcript", "input": { "limit": 3 } },
+            "result": {
+                "lang": "en",
+                "languages": ["en"],
+                "cues": [
+                    { "start": 1, "end": 6, "text": "Welcome to the third lecture on cell biology." },
+                    { "start": 6, "end": 12.5, "text": "Today we look at membranes & transport." },
+                    { "start": 120, "end": 127, "text": "Every cell is enclosed by a membrane." }
+                ],
+                "total": 9,
+                "next": 127
+            }
+        },
+        {
+            "name": "read_transcript: a language the hypervideo has no subtitles in",
+            "op": { "op": "read_transcript", "input": { "lang": "de" } },
+            "error": { "code": "notFound" }
+        },
+        {
+            "name": "find_in_transcript: a word, also inside longer ones",
+            "op": { "op": "find_in_transcript", "input": { "query": "membrane" } },
+            "result": {
+                "lang": "en",
+                "matches": [
+                    { "start": 6, "end": 12.5, "text": "Today we look at membranes & transport." },
+                    { "start": 120, "end": 127, "text": "Every cell is enclosed by a membrane." },
+                    { "start": 127, "end": 135, "text": "The membrane is a double layer of lipids." },
+                    { "start": 190, "end": 198, "text": "Small molecules pass the membrane by diffusion." }
+                ],
+                "total": 4
+            }
+        },
+        {
+            "name": "find_in_transcript: ignoring case",
+            "op": { "op": "find_in_transcript", "input": { "query": "OSMOSIS" } },
+            "result": {
+                "lang": "en",
+                "matches": [
+                    {
+                        "start": 240,
+                        "end": 248,
+                        "text": "Water moves by Osmosis, towards the higher concentration of solutes."
+                    },
+                    { "start": 510, "end": 520, "text": "To sum up: diffusion, osmosis and active transport." }
+                ],
+                "total": 2
+            }
+        },
+        {
+            "name": "find_in_transcript: every word of the query",
+            "op": { "op": "find_in_transcript", "input": { "query": "  energy   active " } },
+            "result": {
+                "lang": "en",
+                "matches": [
+                    {
+                        "start": 306,
+                        "end": 314,
+                        "text": "Active transport uses energy to move molecules against the gradient."
+                    }
+                ],
+                "total": 1
+            }
+        },
+        {
+            "name": "find_in_transcript: nothing found",
+            "op": { "op": "find_in_transcript", "input": { "query": "mitochondria" } },
+            "result": { "lang": "en", "matches": [], "total": 0 }
+        },
+        {
+            "name": "find_in_transcript: a query of white space is refused",
+            "op": { "op": "find_in_transcript", "input": { "query": "   " } },
+            "error": { "code": "invalid", "errors": [{ "path": "/query", "message": "must match the pattern \\S" }] }
+        },
+        {
+            "name": "an unknown operation",
+            "op": { "op": "delete_everything", "input": {} },
+            "error": { "code": "invalid" }
+        }
+    ]
+}

@@ -1,0 +1,460 @@
+{
+    "description": "Changesets: several write operations as one, all or none, with their inverses, versions and generator.",
+    "data": "lecture",
+    "user": { "id": "1", "name": "Ada", "role": "user" },
+    "generator": {
+        "type": "Software",
+        "name": "FrameTrail-Conversational-UI",
+        "model": "mistral-medium-latest",
+        "provider": "mistral"
+    },
+    "now": 1792000000000,
+    "duration": 600,
+    "cases": [
+        {
+            "name": "four operations on the hypervideo and the annotations",
+            "changeset": {
+                "id": "turn-1",
+                "summary": "Structure the transport part",
+                "ops": [
+                    { "op": "add_chapter", "input": { "start": 400, "title": "Active transport" } },
+                    {
+                        "op": "add_overlay",
+                        "input": {
+                            "start": 400,
+                            "end": 410,
+                            "box": { "left": 10, "top": 10, "width": 30, "height": 10 },
+                            "body": { "frametrail:type": "text", "frametrail:attributes": { "text": "Active transport" } }
+                        }
+                    },
+                    {
+                        "op": "add_annotation",
+                        "input": {
+                            "start": 400,
+                            "end": 420,
+                            "body": { "frametrail:type": "text", "frametrail:attributes": { "text": "Needs energy" } }
+                        }
+                    },
+                    { "op": "remove_chapter", "input": { "ref": 300 } }
+                ]
+            },
+            "results": [
+                { "kind": "chapters", "ref": 400, "title": "Active transport", "start": 400, "end": 600 },
+                {
+                    "kind": "overlays",
+                    "ref": "2026-10-14T17:46:40.000Z",
+                    "type": "text",
+                    "start": 400,
+                    "end": 410,
+                    "box": { "left": 10, "top": 10, "width": 30, "height": 10 },
+                    "text": "Active transport"
+                },
+                {
+                    "kind": "annotations",
+                    "ref": "2026-10-14T17:46:40.000Z",
+                    "creator": { "nickname": "Ada", "id": "1" },
+                    "own": true,
+                    "type": "text",
+                    "start": 400,
+                    "end": 420,
+                    "text": "Needs energy"
+                },
+                { "kind": "chapters", "ref": 300, "title": "Transport", "start": 300, "end": 400 }
+            ],
+            "inverses": [
+                { "method": "remove", "args": ["chapters", 400] },
+                { "method": "remove", "args": ["overlays", "2026-10-14T17:46:40.000Z"] },
+                { "method": "remove", "args": ["annotations", "2026-10-14T17:46:40.000Z"] },
+                { "method": "add", "args": ["chapters", { "start": 300, "title": "Transport" }] }
+            ],
+            "applied": {
+                "hypervideoId": "1",
+                "baseVersion": { "hypervideo": 1791000000000, "annotations": 1791000000500 },
+                "createdBy": "1",
+                "summary": "Structure the transport part",
+                "generator": {
+                    "type": "Software",
+                    "name": "FrameTrail-Conversational-UI",
+                    "model": "mistral-medium-latest",
+                    "provider": "mistral"
+                },
+                "id": "turn-1"
+            },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/4",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=400,410&xywh=percent:10,10,30,10",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "1_1790000000_lecture-3.mp4"
+                        },
+                        "body": { "frametrail:type": "text", "frametrail:attributes": { "text": "Active transport" } },
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Overlay",
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-14T17:46:40.000Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                },
+                {
+                    "op": "add",
+                    "path": "/hypervideo/chapters/2",
+                    "value": { "start": 400, "title": "Active transport" }
+                },
+                { "op": "remove", "path": "/hypervideo/chapters/3" },
+                {
+                    "op": "add",
+                    "path": "/annotations/files/1/2",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=400,420",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "1_1790000000_lecture-3.mp4"
+                        },
+                        "body": { "frametrail:type": "text", "frametrail:attributes": { "text": "Needs energy" } },
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Annotation",
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-14T17:46:40.000Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "items added in one changeset get created values of their own",
+            "changeset": {
+                "ops": [
+                    {
+                        "op": "add_overlay",
+                        "input": {
+                            "start": 1,
+                            "end": 2,
+                            "box": { "left": 0, "top": 0, "width": 10, "height": 10 },
+                            "body": { "frametrail:type": "text" }
+                        }
+                    },
+                    {
+                        "op": "add_overlay",
+                        "input": {
+                            "start": 3,
+                            "end": 4,
+                            "box": { "left": 0, "top": 0, "width": 10, "height": 10 },
+                            "body": { "frametrail:type": "text" }
+                        }
+                    }
+                ]
+            },
+            "results": [
+                {
+                    "kind": "overlays",
+                    "ref": "2026-10-14T17:46:40.000Z",
+                    "type": "text",
+                    "start": 1,
+                    "end": 2,
+                    "box": { "left": 0, "top": 0, "width": 10, "height": 10 }
+                },
+                {
+                    "kind": "overlays",
+                    "ref": "2026-10-14T17:46:40.001Z",
+                    "type": "text",
+                    "start": 3,
+                    "end": 4,
+                    "box": { "left": 0, "top": 0, "width": 10, "height": 10 }
+                }
+            ],
+            "inverses": [
+                { "method": "remove", "args": ["overlays", "2026-10-14T17:46:40.000Z"] },
+                { "method": "remove", "args": ["overlays", "2026-10-14T17:46:40.001Z"] }
+            ],
+            "applied": {
+                "hypervideoId": "1",
+                "baseVersion": { "hypervideo": 1791000000000 },
+                "createdBy": "1",
+                "summary": "add_overlay, add_overlay",
+                "generator": {
+                    "type": "Software",
+                    "name": "FrameTrail-Conversational-UI",
+                    "model": "mistral-medium-latest",
+                    "provider": "mistral"
+                }
+            },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/4",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=1,2&xywh=percent:0,0,10,10",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "1_1790000000_lecture-3.mp4"
+                        },
+                        "body": { "frametrail:type": "text" },
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Overlay",
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-14T17:46:40.000Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                },
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/5",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=3,4&xywh=percent:0,0,10,10",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "1_1790000000_lecture-3.mp4"
+                        },
+                        "body": { "frametrail:type": "text" },
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Overlay",
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-14T17:46:40.001Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "an operation can change what an earlier one added",
+            "changeset": {
+                "ops": [
+                    { "op": "add_chapter", "input": { "start": 10, "title": "Draft" } },
+                    { "op": "update_chapter", "input": { "ref": 10, "start": 15, "title": "Final" } }
+                ]
+            },
+            "results": [
+                { "kind": "chapters", "ref": 10, "title": "Draft", "start": 10, "end": 120 },
+                { "kind": "chapters", "ref": 15, "title": "Final", "start": 15, "end": 120 }
+            ],
+            "inverses": [
+                { "method": "remove", "args": ["chapters", 10] },
+                { "method": "update", "args": ["chapters", 15, { "start": 10, "title": "Draft" }] }
+            ],
+            "applied": {
+                "hypervideoId": "1",
+                "baseVersion": { "hypervideo": 1791000000000 },
+                "createdBy": "1",
+                "summary": "add_chapter, update_chapter",
+                "generator": {
+                    "type": "Software",
+                    "name": "FrameTrail-Conversational-UI",
+                    "model": "mistral-medium-latest",
+                    "provider": "mistral"
+                }
+            },
+            "after": [{ "op": "add", "path": "/hypervideo/chapters/1", "value": { "start": 15, "title": "Final" } }]
+        },
+        {
+            "name": "the changeset's own generator, and a summary made of the operations' names",
+            "changeset": {
+                "generator": { "type": "Software", "name": "Some agent over MCP" },
+                "ops": [
+                    {
+                        "op": "update_overlay",
+                        "input": { "ref": "2026-10-01T10:00:02.000Z", "body": { "frametrail:name": "Diagram" } }
+                    },
+                    { "op": "add_chapter", "input": { "start": 10, "title": "Ten" } }
+                ]
+            },
+            "results": [
+                {
+                    "kind": "overlays",
+                    "ref": "2026-10-01T10:00:02.000Z",
+                    "type": "image",
+                    "name": "Diagram",
+                    "start": 130,
+                    "end": 180,
+                    "box": { "left": 55, "top": 10, "width": 40, "height": 50 },
+                    "rotation": 5,
+                    "src": "1_1790000100_membrane.png"
+                },
+                { "kind": "chapters", "ref": 10, "title": "Ten", "start": 10, "end": 120 }
+            ],
+            "inverses": [
+                {
+                    "method": "update",
+                    "args": [
+                        "overlays",
+                        "2026-10-01T10:00:02.000Z",
+                        {
+                            "generator": "https://example.org/another-tool",
+                            "body": { "frametrail:name": "Membrane diagram" }
+                        }
+                    ]
+                },
+                { "method": "remove", "args": ["chapters", 10] }
+            ],
+            "applied": {
+                "hypervideoId": "1",
+                "baseVersion": { "hypervideo": 1791000000000 },
+                "createdBy": "1",
+                "summary": "update_overlay, add_chapter",
+                "generator": { "type": "Software", "name": "Some agent over MCP" }
+            },
+            "after": [
+                {
+                    "op": "replace",
+                    "path": "/hypervideo/contents/2/generator",
+                    "value": { "type": "Software", "name": "Some agent over MCP" }
+                },
+                { "op": "replace", "path": "/hypervideo/contents/2/body/frametrail:name", "value": "Diagram" },
+                { "op": "add", "path": "/hypervideo/chapters/1", "value": { "start": 10, "title": "Ten" } }
+            ]
+        },
+        {
+            "name": "the versions it was made at still hold",
+            "changeset": {
+                "baseVersion": { "hypervideo": 1791000000000, "annotations": 1791000000500 },
+                "ops": [{ "op": "add_chapter", "input": { "start": 10, "title": "Ten" } }]
+            },
+            "results": [{ "kind": "chapters", "ref": 10, "title": "Ten", "start": 10, "end": 120 }],
+            "inverses": [{ "method": "remove", "args": ["chapters", 10] }],
+            "applied": {
+                "hypervideoId": "1",
+                "baseVersion": { "hypervideo": 1791000000000 },
+                "createdBy": "1",
+                "summary": "add_chapter",
+                "generator": {
+                    "type": "Software",
+                    "name": "FrameTrail-Conversational-UI",
+                    "model": "mistral-medium-latest",
+                    "provider": "mistral"
+                }
+            },
+            "after": [{ "op": "add", "path": "/hypervideo/chapters/1", "value": { "start": 10, "title": "Ten" } }]
+        },
+        {
+            "name": "the hypervideo changed since the changeset was made",
+            "changeset": {
+                "baseVersion": { "hypervideo": 1790000000000 },
+                "ops": [{ "op": "add_chapter", "input": { "start": 10, "title": "Ten" } }]
+            },
+            "error": {
+                "code": "conflict",
+                "errors": [
+                    {
+                        "path": "/baseVersion/hypervideo",
+                        "message": "is 1790000000000, but the hypervideo is at 1791000000000"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "the annotation file changed since the changeset was made",
+            "changeset": {
+                "baseVersion": { "hypervideo": 1791000000000, "annotations": 1 },
+                "ops": [{ "op": "add_chapter", "input": { "start": 10, "title": "Ten" } }]
+            },
+            "error": {
+                "code": "conflict",
+                "errors": [{ "path": "/baseVersion/annotations", "message": "is 1, but the annotation file is at 1791000000500" }]
+            }
+        },
+        {
+            "name": "one failing operation, and none is applied",
+            "changeset": {
+                "ops": [
+                    { "op": "add_chapter", "input": { "start": 10, "title": "Ten" } },
+                    {
+                        "op": "add_overlay",
+                        "input": {
+                            "start": 1,
+                            "end": 2,
+                            "box": { "left": 0, "top": 0, "width": 10, "height": 10 },
+                            "body": { "frametrail:type": "text" }
+                        }
+                    },
+                    { "op": "add_chapter", "input": { "start": 10, "title": "Ten again" } }
+                ]
+            },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/ops/2/input/start", "message": "is taken by another chapter" }]
+            }
+        },
+        {
+            "name": "only write operations",
+            "changeset": { "ops": [{ "op": "list_items", "input": {} }, { "op": "drop_table", "input": {} }] },
+            "error": {
+                "code": "invalid",
+                "errors": [
+                    { "path": "/ops/0/op", "message": "only changes go into a changeset; list_items reads" },
+                    { "path": "/ops/1/op", "message": "is not an operation" }
+                ]
+            }
+        },
+        {
+            "name": "a changeset needs its operations",
+            "changeset": { "summary": "Nothing" },
+            "error": { "code": "invalid", "errors": [{ "path": "/ops", "message": "is required" }] }
+        },
+        {
+            "name": "an operation's input must be an object",
+            "changeset": { "ops": [{ "op": "add_chapter", "input": [10, "Ten"] }] },
+            "error": { "code": "invalid", "errors": [{ "path": "/ops/0/input", "message": "must be object, is array" }] }
+        },
+        {
+            "name": "an empty changeset changes nothing",
+            "changeset": { "ops": [] },
+            "results": [],
+            "inverses": [],
+            "applied": {
+                "hypervideoId": "1",
+                "baseVersion": {},
+                "createdBy": "1",
+                "summary": "",
+                "generator": {
+                    "type": "Software",
+                    "name": "FrameTrail-Conversational-UI",
+                    "model": "mistral-medium-latest",
+                    "provider": "mistral"
+                }
+            },
+            "after": []
+        }
+    ]
+}

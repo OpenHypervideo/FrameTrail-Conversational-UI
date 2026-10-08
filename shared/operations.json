@@ -1,0 +1,684 @@
+{
+    "formatVersion": 1,
+    "$defs": {
+        "item": {
+            "type": "object",
+            "required": ["kind", "ref", "start"],
+            "properties": {
+                "kind": {"type": "string", "enum": ["overlays", "annotations", "chapters", "codeSnippets"]},
+                "ref": {
+                    "description": "What refers to the item: created (text) for overlays, annotations and code snippets, start (seconds) for chapters.",
+                    "type": ["string", "number"]
+                },
+                "type": {"type": "string"},
+                "name": {"type": "string"},
+                "title": {"description": "Chapters.", "type": "string"},
+                "start": {"type": "number"},
+                "end": {"type": ["number", "null"]},
+                "box": {
+                    "$ref": "#/$defs/box",
+                    "description": "Overlays: the box in percent of the video frame (with keyframes, the area the box moves in)."
+                },
+                "rotation": {"type": "number"},
+                "moving": {"description": "Overlays with keyframes.", "type": "boolean"},
+                "creator": {"$ref": "#/$defs/person"},
+                "own": {"description": "Annotations: the user's own.", "type": "boolean"},
+                "text": {"description": "The beginning of the item's text, as plain text.", "type": "string"},
+                "src": {"description": "What the item shows: a file name or a URL.", "type": "string"},
+                "tags": {"type": "array", "items": {"type": "string"}}
+            }
+        },
+        "box": {
+            "type": "object",
+            "required": ["left", "top", "width", "height"],
+            "properties": {
+                "left": {"type": "number"},
+                "top": {"type": "number"},
+                "width": {"type": "number", "minimum": 0},
+                "height": {"type": "number", "minimum": 0}
+            }
+        },
+        "person": {"type": "object", "properties": {"nickname": {"type": "string"}, "id": {"type": "string"}}}
+    },
+    "operations": [
+        {
+            "name": "list_hypervideos",
+            "description": "List the hypervideos of this FrameTrail installation: id, name, description, creator, duration and subtitle languages.",
+            "kind": "hypervideos",
+            "effect": "read",
+            "scope": "instance",
+            "preconditions": [],
+            "input": {"type": "object", "properties": {}},
+            "output": {
+                "type": "object",
+                "required": ["hypervideos"],
+                "properties": {
+                    "hypervideos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["id", "name", "duration", "subtitles"],
+                            "properties": {
+                                "id": {"type": "string"},
+                                "name": {"type": "string"},
+                                "description": {"type": "string"},
+                                "creator": {"$ref": "#/$defs/person"},
+                                "duration": {
+                                    "description": "Length in seconds, null where only the video file can tell.",
+                                    "type": ["number", "null"]
+                                },
+                                "subtitles": {
+                                    "description": "Languages of its subtitles.",
+                                    "type": "array",
+                                    "items": {"type": "string"}
+                                },
+                                "open": {"description": "The hypervideo the changes go to.", "type": "boolean"}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "name": "inspect_hypervideo",
+            "description": "Summarize the hypervideo: name, duration, the time range item times fall in, subtitle languages, the content views around the video, the number of overlays, annotations, chapters and code snippets, a time map (chapters, or equal segments, with the overlays and annotations that start in each), and what the user may change. Start here.",
+            "kind": "hypervideo",
+            "effect": "read",
+            "scope": "hypervideo",
+            "preconditions": [],
+            "input": {"type": "object", "properties": {}},
+            "output": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "name",
+                    "duration",
+                    "timeRange",
+                    "subtitles",
+                    "layout",
+                    "counts",
+                    "overlayTypes",
+                    "timeMap",
+                    "user",
+                    "canEdit",
+                    "canAnnotate"
+                ],
+                "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "creator": {"$ref": "#/$defs/person"},
+                    "video": {
+                        "description": "The video: a file name in the installation's resources or a URL; null for an empty timeline.",
+                        "type": ["string", "null"]
+                    },
+                    "duration": {"description": "Length in seconds, null when unknown.", "type": ["number", "null"]},
+                    "timeRange": {
+                        "description": "Item times are seconds of the video and fall in this range (start is where a trimmed video begins). end is null when the duration is unknown.",
+                        "type": "object",
+                        "required": ["start", "end"],
+                        "properties": {"start": {"type": "number"}, "end": {"type": ["number", "null"]}}
+                    },
+                    "subtitles": {
+                        "description": "Languages of the subtitles, to read with read_transcript.",
+                        "type": "array",
+                        "items": {"type": "string"}
+                    },
+                    "layout": {
+                        "description": "The content views around the video, per layout area: their type and name.",
+                        "type": "object",
+                        "required": ["top", "bottom", "left", "right"],
+                        "properties": {
+                            "top": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["type"],
+                                    "properties": {"type": {"type": "string"}, "name": {"type": "string"}}
+                                }
+                            },
+                            "bottom": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["type"],
+                                    "properties": {"type": {"type": "string"}, "name": {"type": "string"}}
+                                }
+                            },
+                            "left": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["type"],
+                                    "properties": {"type": {"type": "string"}, "name": {"type": "string"}}
+                                }
+                            },
+                            "right": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["type"],
+                                    "properties": {"type": {"type": "string"}, "name": {"type": "string"}}
+                                }
+                            }
+                        }
+                    },
+                    "counts": {
+                        "type": "object",
+                        "required": ["overlays", "annotations", "ownAnnotations", "chapters", "codeSnippets"],
+                        "properties": {
+                            "overlays": {"type": "integer"},
+                            "annotations": {"description": "Everyone's.", "type": "integer"},
+                            "ownAnnotations": {"description": "The user's own.", "type": "integer"},
+                            "chapters": {"type": "integer"},
+                            "codeSnippets": {"type": "integer"}
+                        }
+                    },
+                    "overlayTypes": {
+                        "description": "Number of overlays per type.",
+                        "type": "object",
+                        "additionalProperties": {"type": "integer"}
+                    },
+                    "timeMap": {
+                        "description": "The hypervideo in segments: its chapters, or equal segments when it has none. Overlays and annotations are counted in the segment where they start.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["start", "end", "overlays", "annotations"],
+                            "properties": {
+                                "start": {"type": "number"},
+                                "end": {"type": ["number", "null"]},
+                                "chapter": {"description": "The chapter's title.", "type": "string"},
+                                "overlays": {"type": "integer"},
+                                "annotations": {"type": "integer"}
+                            }
+                        }
+                    },
+                    "user": {
+                        "description": "Who changes are made as; null when nobody is signed in.",
+                        "type": ["object", "null"],
+                        "required": ["id", "name", "role"],
+                        "properties": {
+                            "id": {"type": "string"},
+                            "name": {"type": "string"},
+                            "role": {"type": "string", "enum": ["admin", "user"]},
+                            "guest": {"description": "Editing without an account.", "type": "boolean"}
+                        }
+                    },
+                    "canEdit": {
+                        "description": "The user may change overlays, chapters, subtitles and content views.",
+                        "type": "boolean"
+                    },
+                    "canAnnotate": {"description": "The user may add annotations, and change their own.", "type": "boolean"}
+                }
+            }
+        },
+        {
+            "name": "list_items",
+            "description": "List overlays, annotations, chapters and code snippets in short form, sorted by start: their ref (for get_item and the update and remove operations), type, name, time, box and a text excerpt. Narrow it down by kind, by a time span (from, to: items that overlap it), by type or by creator.",
+            "kind": "items",
+            "effect": "read",
+            "scope": "hypervideo",
+            "preconditions": [],
+            "input": {
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "description": "Only items of this kind. All kinds when omitted.",
+                        "type": "string",
+                        "enum": ["overlays", "annotations", "chapters", "codeSnippets"]
+                    },
+                    "from": {
+                        "description": "Only items that end at or after this time, in seconds.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "to": {
+                        "description": "Only items that start at or before this time, in seconds.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "type": {
+                        "description": "Only overlays and annotations of this type (text, image, hotspot, …).",
+                        "type": "string"
+                    },
+                    "creator": {"description": "Only annotations by the user with this id.", "type": "string"},
+                    "limit": {
+                        "description": "At most this many items (default 100). total says how many there are.",
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 500
+                    }
+                }
+            },
+            "output": {
+                "type": "object",
+                "required": ["items", "total"],
+                "properties": {"items": {"type": "array", "items": {"$ref": "#/$defs/item"}}, "total": {"type": "integer"}}
+            }
+        },
+        {
+            "name": "get_item",
+            "description": "Get one overlay, annotation, chapter or code snippet in full, in FrameTrail's stored form (W3C Web Annotations for overlays, annotations and code snippets; { start, title } for chapters).",
+            "kind": "items",
+            "effect": "read",
+            "scope": "hypervideo",
+            "preconditions": ["itemExists"],
+            "input": {
+                "type": "object",
+                "required": ["kind", "ref"],
+                "properties": {
+                    "kind": {"type": "string", "enum": ["overlays", "annotations", "chapters", "codeSnippets"]},
+                    "ref": {
+                        "description": "The item's ref from list_items: created (text), or a chapter's start (seconds).",
+                        "type": ["string", "number"]
+                    },
+                    "creator": {
+                        "description": "Annotations by someone else: the creator's id. Without it, ref names one of the user's own annotations.",
+                        "type": "string"
+                    }
+                }
+            },
+            "output": {"type": "object", "required": ["item"], "properties": {"item": {"type": "object"}}}
+        },
+        {
+            "name": "read_transcript",
+            "description": "Read the subtitles of the hypervideo as cues with start, end (seconds) and text, optionally only those that overlap a time span. When there are more than limit cues, next is the start of the first one left out: read on with from set to it.",
+            "kind": "subtitles",
+            "effect": "read",
+            "scope": "hypervideo",
+            "preconditions": ["subtitles"],
+            "input": {
+                "type": "object",
+                "properties": {
+                    "lang": {
+                        "description": "Language of the subtitles. The first language when omitted.",
+                        "type": "string"
+                    },
+                    "from": {
+                        "description": "Only cues that end after this time, in seconds.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "to": {
+                        "description": "Only cues that start before this time, in seconds.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "limit": {
+                        "description": "At most this many cues (default 200).",
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000
+                    }
+                }
+            },
+            "output": {
+                "type": "object",
+                "required": ["lang", "languages", "cues", "total"],
+                "properties": {
+                    "lang": {"type": "string"},
+                    "languages": {"type": "array", "items": {"type": "string"}},
+                    "cues": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["start", "end", "text"],
+                            "properties": {
+                                "start": {"type": "number"},
+                                "end": {"type": "number"},
+                                "text": {"type": "string"}
+                            }
+                        }
+                    },
+                    "total": {"description": "Cues in the time span.", "type": "integer"},
+                    "next": {"description": "Start of the first cue left out.", "type": "number"}
+                }
+            }
+        },
+        {
+            "name": "find_in_transcript",
+            "description": "Find the subtitle cues that contain every word of a query (ignoring case), with their start, end (seconds) and text.",
+            "kind": "subtitles",
+            "effect": "read",
+            "scope": "hypervideo",
+            "preconditions": ["subtitles"],
+            "input": {
+                "type": "object",
+                "required": ["query"],
+                "properties": {
+                    "query": {"description": "One or more words.", "type": "string", "pattern": "\\S"},
+                    "lang": {
+                        "description": "Language of the subtitles. The first language when omitted.",
+                        "type": "string"
+                    },
+                    "limit": {
+                        "description": "At most this many cues (default 50).",
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 500
+                    }
+                }
+            },
+            "output": {
+                "type": "object",
+                "required": ["lang", "matches", "total"],
+                "properties": {
+                    "lang": {"type": "string"},
+                    "matches": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["start", "end", "text"],
+                            "properties": {
+                                "start": {"type": "number"},
+                                "end": {"type": "number"},
+                                "text": {"type": "string"}
+                            }
+                        }
+                    },
+                    "total": {"type": "integer"}
+                }
+            }
+        },
+        {
+            "name": "add_overlay",
+            "description": "Add an overlay: content shown over the video from start to end, in a box positioned in percent of the video frame. body says what it shows: frametrail:type (text, image, hotspot, quiz, …), frametrail:name, and frametrail:attributes with that type's settings; media types take their file name or URL in source. Returns the new overlay in short form, with its ref.",
+            "kind": "overlays",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canEditHypervideo"],
+            "input": {
+                "type": "object",
+                "required": ["start", "end", "body"],
+                "properties": {
+                    "start": {
+                        "description": "When the overlay appears, in seconds of the video.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "end": {
+                        "description": "When it disappears, in seconds of the video; not before start.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "box": {
+                        "$ref": "#/$defs/box",
+                        "description": "Where it is shown, in percent of the video frame: the box's left and top edge, its width and height. Required unless keyframes are given."
+                    },
+                    "rotation": {
+                        "description": "Rotation of the box in degrees, clockwise. Not with keyframes, which carry their own (r).",
+                        "type": "number"
+                    },
+                    "keyframes": {
+                        "description": "Box motion: the box at moments of the video (t in seconds, xywh in percent: left, top, width, height), optionally rotated (r, degrees) and eased towards the next keyframe (ease). The overlay's box is then the area it moves in.",
+                        "type": "array",
+                        "items": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/keyframe"}
+                    },
+                    "body": {
+                        "$ref": "https://frametrail.org/schemas/1/content-item.schema.json#/$defs/overlay/properties/body"
+                    },
+                    "tags": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/tags"},
+                    "events": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/overlayEvents"}
+                }
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "update_overlay",
+            "description": "Change an overlay. Give only what changes: start, end, box, rotation or keyframes (null stops the motion, and the box becomes the area it moved in), and body or events as a JSON Merge Patch (objects are merged, null removes a property, everything else is replaced). Keyframe times are seconds of the video: they stay where they are when start or end change. The type cannot change: remove the overlay and add a new one. Returns the overlay in short form.",
+            "kind": "overlays",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canEditHypervideo", "itemExists"],
+            "input": {
+                "type": "object",
+                "required": ["ref"],
+                "properties": {
+                    "ref": {"description": "The overlay's ref from list_items (its created).", "type": "string"},
+                    "start": {
+                        "description": "When the overlay appears, in seconds of the video.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "end": {
+                        "description": "When it disappears, in seconds of the video; not before start.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "box": {
+                        "$ref": "#/$defs/box",
+                        "description": "Where it is shown, in percent of the video frame. Not while it has keyframes."
+                    },
+                    "rotation": {
+                        "description": "Rotation in degrees, clockwise; 0 or null for none. Not while it has keyframes.",
+                        "type": ["number", "null"]
+                    },
+                    "keyframes": {
+                        "description": "New box motion, replacing the old; null (or an empty list) stops the motion.",
+                        "type": ["array", "null"],
+                        "items": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/keyframe"}
+                    },
+                    "body": {
+                        "description": "Changes to the body as a JSON Merge Patch, e.g. { \"frametrail:attributes\": { \"text\": \"…\" } }.",
+                        "type": "object"
+                    },
+                    "tags": {
+                        "description": "The new tags; null removes them.",
+                        "type": ["array", "null"],
+                        "items": {"type": "string"}
+                    },
+                    "events": {
+                        "description": "Changes to the events as a JSON Merge Patch; null removes them all.",
+                        "type": ["object", "null"]
+                    }
+                }
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "remove_overlay",
+            "description": "Remove an overlay. Returns it in short form.",
+            "kind": "overlays",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canEditHypervideo", "itemExists"],
+            "input": {
+                "type": "object",
+                "required": ["ref"],
+                "properties": {"ref": {"description": "The overlay's ref from list_items (its created).", "type": "string"}}
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "add_annotation",
+            "description": "Add an annotation of the user's own: content that accompanies the video from start to end, shown in the content views beside it (not over the video). body says what it shows, as for overlays (text, image, webpage, wikipedia, location, …; no hotspots, cursors, counters or charts). Returns the new annotation in short form, with its ref.",
+            "kind": "annotations",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canAnnotate"],
+            "input": {
+                "type": "object",
+                "required": ["start", "end", "body"],
+                "properties": {
+                    "start": {
+                        "description": "Where it begins, in seconds of the video.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "end": {
+                        "description": "Where it ends, in seconds of the video; not before start.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "body": {
+                        "$ref": "https://frametrail.org/schemas/1/annotation-file.schema.json#/$defs/annotation/properties/body"
+                    },
+                    "tags": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/tags"}
+                }
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "update_annotation",
+            "description": "Change one of the user's own annotations. Give only what changes: start, end, and body as a JSON Merge Patch (objects are merged, null removes a property, everything else is replaced). The type cannot change. Returns the annotation in short form.",
+            "kind": "annotations",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canAnnotate", "itemExists"],
+            "input": {
+                "type": "object",
+                "required": ["ref"],
+                "properties": {
+                    "ref": {
+                        "description": "The annotation's ref from list_items (its created). Only the user's own annotations can be changed.",
+                        "type": "string"
+                    },
+                    "start": {
+                        "description": "Where it begins, in seconds of the video.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "end": {
+                        "description": "Where it ends, in seconds of the video; not before start.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "body": {"description": "Changes to the body as a JSON Merge Patch.", "type": "object"},
+                    "tags": {
+                        "description": "The new tags; null removes them.",
+                        "type": ["array", "null"],
+                        "items": {"type": "string"}
+                    }
+                }
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "remove_annotation",
+            "description": "Remove one of the user's own annotations. Returns it in short form.",
+            "kind": "annotations",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canAnnotate", "itemExists"],
+            "input": {
+                "type": "object",
+                "required": ["ref"],
+                "properties": {
+                    "ref": {"description": "The annotation's ref from list_items (its created).", "type": "string"}
+                }
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "add_chapter",
+            "description": "Add a chapter starting at start (seconds of the video), with a title. Chapters are told apart by their start: no two start at the same time.",
+            "kind": "chapters",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canEditHypervideo", "chapterStartFree"],
+            "input": {
+                "type": "object",
+                "required": ["start", "title"],
+                "properties": {
+                    "start": {
+                        "description": "Where the chapter starts, in seconds of the video.",
+                        "type": "number",
+                        "minimum": 0
+                    },
+                    "title": {"description": "Title of the chapter.", "type": "string"}
+                }
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "update_chapter",
+            "description": "Change a chapter's start or title. Returns the chapter in short form; its ref is its new start.",
+            "kind": "chapters",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canEditHypervideo", "itemExists", "chapterStartFree"],
+            "input": {
+                "type": "object",
+                "required": ["ref"],
+                "properties": {
+                    "ref": {"description": "The chapter's current start, in seconds.", "type": "number"},
+                    "start": {"description": "The new start, in seconds of the video.", "type": "number", "minimum": 0},
+                    "title": {"description": "The new title.", "type": "string"}
+                }
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "remove_chapter",
+            "description": "Remove a chapter. Returns it in short form.",
+            "kind": "chapters",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canEditHypervideo", "itemExists"],
+            "input": {
+                "type": "object",
+                "required": ["ref"],
+                "properties": {"ref": {"description": "The chapter's start, in seconds.", "type": "number"}}
+            },
+            "output": {"$ref": "#/$defs/item"}
+        },
+        {
+            "name": "set_subtitles",
+            "description": "Set the subtitles of a language to a WebVTT text (beginning with WEBVTT), replacing what was there, or remove them with vtt null.",
+            "kind": "subtitles",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canEditHypervideo"],
+            "input": {
+                "type": "object",
+                "required": ["lang", "vtt"],
+                "properties": {
+                    "lang": {
+                        "description": "Language code, e.g. en or de.",
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{1,32}$"
+                    },
+                    "vtt": {
+                        "description": "The WebVTT text, or null to remove the subtitles.",
+                        "type": ["string", "null"]
+                    }
+                }
+            },
+            "output": {
+                "type": "object",
+                "required": ["lang", "src", "cues"],
+                "properties": {
+                    "lang": {"type": "string"},
+                    "src": {"description": "The subtitle file, null when removed.", "type": ["string", "null"]},
+                    "cues": {"description": "Number of cues.", "type": "integer"}
+                }
+            }
+        },
+        {
+            "name": "set_layout_area",
+            "description": "Replace the content views of a layout area around the video (top, bottom, left or right). Each view has a type: TimedContent (annotations in sync with the video), CustomHTML, Transcript (the subtitles of transcriptSource), Timelines or Chapters, and a name. Returns the area's views as stored.",
+            "kind": "contentViews",
+            "effect": "write",
+            "scope": "hypervideo",
+            "preconditions": ["canEditHypervideo"],
+            "input": {
+                "type": "object",
+                "required": ["area", "contentViews"],
+                "properties": {
+                    "area": {"type": "string", "enum": ["top", "bottom", "left", "right"]},
+                    "contentViews": {
+                        "description": "The views of the area, in order; an empty list leaves it empty.",
+                        "type": "array",
+                        "items": {"$ref": "https://frametrail.org/schemas/1/hypervideo.schema.json#/$defs/contentView"}
+                    }
+                }
+            },
+            "output": {
+                "type": "object",
+                "required": ["area", "contentViews"],
+                "properties": {"area": {"type": "string"}, "contentViews": {"type": "array", "items": {"type": "object"}}}
+            }
+        }
+    ]
+}
