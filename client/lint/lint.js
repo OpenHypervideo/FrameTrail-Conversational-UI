@@ -2,9 +2,8 @@
  * FrameTrail-Conversational-UI — the lint rules (FrameTrailConversationalUI.lint):
  * checks of the hypervideo in a store that its schemas cannot express. The
  * rules, their ids and severities are in shared/lint.json
- * (FrameTrailConversationalUI.lintRules, embedded by the build); the PHP side
- * (server/lib/lint.php) has the same rules and messages, which
- * shared/fixtures/lint/ holds both to.
+ * (FrameTrailConversationalUI.lintRules, embedded by the build);
+ * shared/fixtures/lint/ holds the findings and messages.
  *
  *     var result = ConversationalUI.lint.run(store);              // every rule
  *     ConversationalUI.lint.run(store, { rules: ['chapter-order'] });

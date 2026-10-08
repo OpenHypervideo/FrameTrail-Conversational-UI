@@ -1,15 +1,12 @@
 # Conformance Fixtures
 
-The operations of [`operations.json`](../operations.json) and the lint rules of [`lint.json`](../lint.json) have two implementations: JavaScript (`client/ops/`, `client/lint/`, for the editor) and PHP (`server/lib/`, for the server). These fixtures say what both must do. They are plain JSON, so each runner reads them the same way; the rules below are what a runner applies. `tests/run-js.mjs` and `tests/run-php.php` are the runners.
+These fixtures say what the operations of [`operations.json`](../operations.json) (`client/ops/`) and the lint rules of [`lint.json`](../lint.json) (`client/lint/`) must do. They are plain JSON; the rules below are what a runner applies, and they are the specification of the behaviour that any other implementation would have to follow too. `tests/run-js.mjs` is the runner:
 
 ```bash
-node tests/run-js.mjs                     # both need a FrameTrail working copy, see the runners
-php tests/run-php.php
-node tests/run-js.mjs --list-fixtures     # the cases a runner runs, one per line
-php tests/run-php.php --list-fixtures
+node tests/run-js.mjs                     # needs a FrameTrail working copy, see the runner
 ```
 
-Both runners run every case; CI compares their lists, so a case that only one runner reads fails, and a runner fails on a folder here it does not know.
+It runs every case, and fails on a folder here it does not know.
 
 ## Files
 
@@ -77,7 +74,7 @@ The file's `data`, `user`, `now`, `duration`, `hypervideoId` and `generator` hol
    - After a write the store's data equals the data with `after` applied.
 5. After a write, undo the applied changeset (its inverses, last first). The bundle then equals the data as it would be written with nothing changed, except that items may come in another order, a property that was `null` may be missing (a merge patch cannot set `null`), and an empty annotation file counts as none.
 
-`tests/run-js.mjs` does this in `runCase()`, `tests/run-php.php` in `runOpsCase()`.
+`tests/run-js.mjs` does this in `runCase()`.
 
 ### The store's data
 
@@ -87,11 +84,11 @@ The store follows FrameTrail's edit API (FrameTrail's `docs/EXTENDING.md`, "Edit
 
 ### The operations
 
-Where the interpreters must agree beyond the schemas:
+What the interpreter does beyond the schemas:
 
 - **Short form of items** (`list_items` and the write operations' results): `kind`, `ref`, then what applies — `type`, `name` (when not empty), `start`, `end`, `box` and `rotation` (when not 0) and `moving` (with keyframes) for overlays, `creator` and `own` for annotations, `title` and `end` (the next chapter's start, else the video's end, else `null`) for chapters, `text`, `src`, `tags` (when not empty). `text` is the plain text of `frametrail:attributes.text` (text, html, entity; for text `"<title>: <text>"` when there is a title), `.question` (quiz) or `.text` (hotspot), cut after 160 characters (code points) with `…`. `src` is the body's `source` when not empty, else its `value` for webpage, wikipedia and entity.
 - **Plain text:** decode character references (`&amp; &lt; &gt; &quot; &apos; &nbsp;`, case-insensitive, `&nbsp;` as a space, and numeric ones `&#…;` `&#x…;` of valid code points; nothing else), remove tags (`<` and a letter, or `</` and a letter, up to `>`) and comments, decode again, collapse white space to single spaces, trim.
-- **Sorting** (`list_items`): by start; on a tie overlays, annotations, chapters, code snippets; then as stored. The sort must be stable (PHP's `usort` is not before 8.0).
+- **Sorting** (`list_items`): by start; on a tie overlays, annotations, chapters, code snippets; then as stored. The sort is stable.
 - **Time map** (`inspect_hypervideo`): with chapters, one segment per chapter (to the next one's start, the last to the video's end or `null`), and one before the first chapter when it starts after the time range's start; without, equal segments from the time range's start of the shortest of 30, 60, 120, 300, 600, 900, 1800, 3600 seconds that makes at most 12 (else whole hours), the end being the video's end or, when unknown, the latest item end (no segments when there is none), segment bounds rounded to the millisecond. Overlays and annotations are counted in the last segment that starts at or before their start (the first when none does).
 - **Transcripts:** cues by the WebVTT rules in `client/ops/util.js` (`cues()`): blocks separated by empty lines; a cue's timing line is its first or second line (`[h:]mm:ss.ttt --> …`, also with `,`); its text is the following lines as plain text joined by a space; cues without text are left out; times in seconds rounded to the millisecond. `read_transcript` takes the cues that end after `from` and start before `to`; `next` is the start of the first one left out. `find_in_transcript` matches cues whose lower-cased text contains every word of the lower-cased query.
 - **Media Fragments written:** `t=<start>,<end>&xywh=percent:<left>,<top>,<width>,<height>`, numbers as JavaScript writes them (`12.5`, `0.30000000000000004`, `1e+21`). With keyframes the box is `FrameTrailKeyframes.unionBox()` of the normalised keyframes (`normalizeKeyframes()`).
@@ -131,7 +128,7 @@ A runner makes a model store over the patched data, runs the rules, and checks t
 
 ### The rules
 
-Where both implementations must agree beyond `lint.json`:
+What the rules do beyond `lint.json`:
 
 - **What is read:** the store's overlays, annotations (of every user) and code snippets as `list()` gives them, its chapters (sorted, `list('chapters')`; `chapter-order` reads them in stored order from `getHypervideo()`), the clip of `getHypervideo()`, the time of `getInfo()` (`start`, and `end` when known), each subtitle language's text, the resources of `resources()` when the store has it.
 - **Order:** findings by rule in the order of `lint.json`; within a rule overlays, then annotations, then code snippets, then chapters, each as listed. `overlay-overlap` goes through the pairs by the later overlay, then the earlier.

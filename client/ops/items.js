@@ -2,7 +2,7 @@
  * FrameTrail-Conversational-UI — items (ops.items): the short form of items
  * that operations return, and the stored items and merge patches they make
  * from an operation's input (time and box as numbers, the body in FrameTrail's
- * stored form). Same rules in the PHP interpreter (shared/fixtures/README.md).
+ * stored form). The rules are in shared/fixtures/README.md.
  */
 
 (function(ConversationalUI) {

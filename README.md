@@ -1,15 +1,15 @@
 # FrameTrail-Conversational-UI
 
-An extension for [FrameTrail](https://github.com/OpenHypervideo/FrameTrail) that adds a conversational UI: editing a hypervideo in natural language, from a chat panel in the editor (with Mistral's models) or from an agent outside it (MCP endpoint, command-line tool, skills).
+An extension for [FrameTrail](https://github.com/OpenHypervideo/FrameTrail) that adds a conversational UI: editing a hypervideo in natural language, from a chat panel in the editor, with Mistral's models.
 
-**Status: early development.** The add-on loads into FrameTrail, adds an empty panel to the editor and installs its server part. What an agent can do with a hypervideo is defined ([`shared/operations.json`](shared/operations.json): reading it, its items and its transcript; adding, changing and removing overlays, annotations, chapters, subtitles and content views) and carried out alike in the browser (as changesets that are one undo step in the editor) and on the server, in PHP; lint rules check a hypervideo after changes ([`shared/lint.json`](shared/lint.json)). The chat panel, the MCP endpoint and the command-line tool follow.
+**Status: early development.** The add-on loads into FrameTrail, adds an empty panel to the editor and installs its server part. What the panel's model can do with a hypervideo is defined ([`shared/operations.json`](shared/operations.json): reading it, its items and its transcript; adding, changing and removing overlays, annotations, chapters, subtitles and content views) and carried out in the browser, as changesets that are one undo step in the editor; lint rules check a hypervideo after changes ([`shared/lint.json`](shared/lint.json)). The chat panel, the model relay and transcription follow.
 
 ## Requirements
 
 - FrameTrail 1.4.1 or later; the editing operations in the editor need the release after it (FrameTrail's `develop` until then), whose edit API tells the open hypervideo's time, the user and their permissions.
 - For the server part: FrameTrail's PHP backend (server mode), PHP 7.4 or later. No Composer.
 
-The browser part works wherever FrameTrail runs; the server part is used only in server mode.
+The browser part works wherever FrameTrail runs. The server part is used only in server mode: it answers a status action now, and will relay requests to Mistral (so the server can hold the key) and transcribe uploaded media.
 
 ## Installing
 
@@ -70,12 +70,12 @@ bash scripts/build.sh            # build/ (version "dev")
 bash scripts/build.sh v0.1.0     # a release label
 
 node tests/run-js.mjs            # the client part and the conformance fixtures (Node 20 or later)
-php tests/run-php.php            # the server part and the conformance fixtures (PHP 7.4 or later)
+php tests/run-php.php            # the server part (PHP 7.4 or later)
 node tests/run-js.mjs --build    # the same tests against build/
 php tests/run-php.php --build
 ```
 
-Both test runners use a FrameTrail working copy (1.4.1 or later): the JavaScript tests its serializer, validator and schemas, the PHP tests its fixtures, which the server part's PHP ports of those scripts must pass. A clone next to this repository named `frametrail` is found by itself, any other is named with `FRAMETRAIL_DIR=<path>` or `--frametrail=<path>`. The conformance fixtures, which both interpreters must pass, and the rules for running them are in [`shared/fixtures/`](shared/fixtures/README.md). The server part carries a copy of FrameTrail's schemas, `server/lib/frametrail/schemas.json`; `php scripts/vendor-schemas.php` renews it from the working copy.
+The JavaScript tests use a FrameTrail working copy (1.4.1 or later) for its serializer, keyframe math, validator and schemas. A clone next to this repository named `frametrail` is found by itself, any other is named with `FRAMETRAIL_DIR=<path>` or `--frametrail=<path>`. The conformance fixtures and the rules for running them are in [`shared/fixtures/`](shared/fixtures/README.md).
 
 To try it in a FrameTrail working copy, build it, then either extract the zip into a FrameTrail build (`bash scripts/build.sh` there), or, in FrameTrail's `src/`:
 

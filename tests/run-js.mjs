@@ -13,13 +13,7 @@
  * next to this repository's, ../frametrail.
  *
  * The conformance fixtures in shared/fixtures/ run against the model store;
- * shared/fixtures/README.md has the rules, for runners in other languages too.
- * tests/run-php.php runs the same fixtures against the PHP interpreter;
- *
- *     node tests/run-js.mjs --list-fixtures
- *
- * prints the cases this runner runs, one per line, for CI to compare with the
- * PHP runner's list.
+ * shared/fixtures/README.md has the rules.
  */
 
 import { describe, test } from 'node:test';
@@ -72,17 +66,6 @@ const FIXTURE_FOLDERS = ['data', 'ops', 'lint'];
 function fixtureFiles(folder) {
     const dir = path.join(FIXTURES, folder);
     return fs.existsSync(dir) ? fs.readdirSync(dir).filter((name) => name.endsWith('.json')).sort() : [];
-}
-
-// Every case of the conformance fixtures, as "<folder>/<file>: <name>" (tests/run-php.php lists them alike).
-function fixtureCases() {
-    return ['ops', 'lint'].flatMap((folder) => fixtureFiles(folder).flatMap((file) =>
-        readJSON(path.join(FIXTURES, folder, file)).cases.map((c) => folder + '/' + file + ': ' + c.name)));
-}
-
-if (process.argv.includes('--list-fixtures')) {
-    process.stdout.write(fixtureCases().map((line) => line + '\n').join(''));
-    process.exit(0);
 }
 
 

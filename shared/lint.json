@@ -1,6 +1,6 @@
 {
     "formatVersion": 1,
-    "description": "The lint rules of FrameTrail-Conversational-UI: checks of a hypervideo that its schemas cannot express, run after changes (the editor's chat panel, MCP receipts, the command-line tool). Both interpreters implement every rule (client/lint/, server/lib/lint.php) with the same ids, severities and messages; shared/fixtures/lint/ holds them to it. $defs/result is what a lint gives back, in FrameTrail's schema subset.",
+    "description": "The lint rules of FrameTrail-Conversational-UI: checks of a hypervideo that its schemas cannot express, run after changes (the chat panel after a turn). client/lint/ implements every rule with these ids and severities; shared/fixtures/lint/ holds it to the findings and messages. $defs/result is what a lint gives back, in FrameTrail's schema subset.",
     "rules": [
         {
             "id": "item-outside-video",

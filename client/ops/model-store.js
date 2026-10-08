@@ -6,9 +6,8 @@
  * rules: the same envelope for new items, the same identities (created,
  * a chapter's start), merge patches, checks, permissions and errors.
  *
- * It runs the conformance fixtures (shared/fixtures/ops/) and is what the PHP
- * interpreter's store (A2, A3) does on the server, which writes the files
- * without an editor.
+ * It runs the conformance fixtures (shared/fixtures/ops/): the reference for
+ * what the operations do, without an editor.
  *
  *     var store = ops.modelStore(bundle, { user: { id: '1', name: 'Ada', role: 'admin' } });
  *     store.add('chapters', { start: 60, title: 'Part two' });

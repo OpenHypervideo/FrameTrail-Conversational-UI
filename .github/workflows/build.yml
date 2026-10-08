@@ -6,10 +6,9 @@ on:
   pull_request:
     branches: [main, develop]
 
-# The FrameTrail release whose serializer, validator and schemas the
-# JavaScript tests load (see tests/run-js.mjs), and whose fixtures and schemas
-# the PHP tests check the ports against (see tests/run-php.php): the oldest
-# release that has them as the add-on uses them.
+# The FrameTrail release whose serializer, keyframe math, validator and
+# schemas the JavaScript tests load (see tests/run-js.mjs): the oldest release
+# that has them as the add-on uses them.
 env:
   FRAMETRAIL_REF: v1.4.1
   FRAMETRAIL_DIR: frametrail
@@ -49,20 +48,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Checkout FrameTrail
-        uses: actions/checkout@v4
-        with:
-          repository: OpenHypervideo/FrameTrail
-          ref: ${{ env.FRAMETRAIL_REF }}
-          path: ${{ env.FRAMETRAIL_DIR }}
-
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           coverage: none
 
-      # The server part and the conformance fixtures (see tests/run-php.php); no dependencies
+      # The server part (see tests/run-php.php); no dependencies
       - name: Run tests
         run: php tests/run-php.php
 
@@ -90,11 +82,6 @@ jobs:
         with:
           php-version: '7.4'
           coverage: none
-
-      # Both interpreters run the same conformance cases: a case that only one
-      # runner reads fails here
-      - name: Compare the fixture cases of both runners
-        run: diff <(node tests/run-js.mjs --list-fixtures) <(php tests/run-php.php --list-fixtures)
 
       - name: Build
         run: bash scripts/build.sh

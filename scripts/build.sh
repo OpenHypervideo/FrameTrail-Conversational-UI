@@ -67,8 +67,7 @@ JS_FILES=(
 
 #  Shared data (relative to shared/), written into
 #  the bundle right after namespace.js as properties
-#  of the global: "<property>:<file>". The server part
-#  reads the same files from build/server/shared/.
+#  of the global: "<property>:<file>".
 
 SHARED_DATA=(
     "operations:operations.json"
@@ -144,12 +143,6 @@ echo "Copying the server part..."
 cp -R "$SERVER_DIR/." "$BUILD_DIR/server/"
 find "$BUILD_DIR/server" -name ".DS_Store" -delete
 cp "$ROOT_DIR/LICENSE" "$BUILD_DIR/server/"
-
-# The shared data the server reads at run time (server/lib/shared.php)
-mkdir -p "$BUILD_DIR/server/shared"
-for entry in "${SHARED_DATA[@]}"; do
-    cp "$SHARED_DIR/${entry#*:}" "$BUILD_DIR/server/shared/"
-done
 
 # ──────────────────────────────────────────────
 #  Version

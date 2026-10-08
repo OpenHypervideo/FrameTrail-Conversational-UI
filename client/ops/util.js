@@ -1,8 +1,7 @@
 /*
  * FrameTrail-Conversational-UI — helpers of the operations (ops.util): JSON,
  * merge patches, errors, Media Fragments, plain text and WebVTT cues. They
- * know no FrameTrail instance; the PHP interpreter has the same rules
- * (shared/fixtures/README.md).
+ * know no FrameTrail instance; their rules are in shared/fixtures/README.md.
  */
 
 (function(ConversationalUI) {
@@ -207,7 +206,7 @@
     // A tag (a letter after < or </) or a comment; "a < b" is text.
     var TAG = /<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>/g;
 
-    // These character references only, so the PHP side decodes alike.
+    // These character references only (shared/fixtures/README.md, plain text).
     function decodeEntities(text) {
         return text.replace(/&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z]+);/g, function(all, name) {
             if (name.charAt(0) === '#') {
