@@ -1,7 +1,8 @@
 /*
  * FrameTrail-Conversational-UI — helpers of the operations (ops.util): JSON,
- * merge patches, errors, Media Fragments, plain text and WebVTT cues. They
- * know no FrameTrail instance; their rules are in shared/fixtures/README.md.
+ * merge patches, schema references, errors, Media Fragments, plain text and
+ * WebVTT cues. They know no FrameTrail instance; their rules are in
+ * shared/fixtures/README.md.
  */
 
 (function(ConversationalUI) {
@@ -107,6 +108,109 @@
     // A key as a JSON Pointer token (RFC 6901).
     function pointerToken(key) {
         return String(key).replace(/~/g, '~0').replace(/\//g, '~1');
+    }
+
+
+    /* ------------------------------------------------------------------ */
+    /*  Schemas                                                           */
+    /* ------------------------------------------------------------------ */
+
+    // A reference resolved against a base URI, as FrameTrailSchema resolves them (RFC 3986, as far as schema ids need it).
+    function resolveUri(ref, base) {
+
+        if (/^[a-z][a-z0-9+.-]*:/i.test(ref)) { return ref; }
+
+        var hash     = ref.indexOf('#'),
+            path     = (hash >= 0) ? ref.slice(0, hash) : ref,
+            fragment = (hash >= 0) ? ref.slice(hash) : '',
+            document = base.split('#')[0];
+
+        if (path === '') { return document + fragment; }
+
+        var m        = /^([a-z][a-z0-9+.-]*:\/\/[^\/?#]*)?(.*)$/i.exec(document),
+            origin   = m[1] || '',
+            joined   = (path.charAt(0) === '/') ? path : m[2].replace(/[^\/]*$/, '') + path,
+            segments = [];
+
+        joined.split('/').forEach(function(segment, i, all) {
+            if (segment === '.') {
+                if (i === all.length - 1) { segments.push(''); }
+            } else if (segment === '..') {
+                if (segments.length > 1) { segments.pop(); }
+                if (i === all.length - 1) { segments.push(''); }
+            } else {
+                segments.push(segment);
+            }
+        });
+
+        return origin + segments.join('/') + fragment;
+
+    }
+
+    /**
+     * I return a copy of a schema with its references ($ref) replaced by the
+     * schemas they point to, so that it stands alone: keywords beside a $ref
+     * (a description) win over the target's, $id, $schema and $defs are left
+     * out. replace(uri), when given, may return a schema to put in place of
+     * the one a reference points to (undefined: inline it).
+     *
+     * @param {Object} schema
+     * @param {String} base the URI the schema's references are relative to
+     * @param {Object} documents schema documents by $id
+     * @param {Function} [replace]
+     */
+    function inlineSchema(schema, base, documents, replace) {
+
+        function lookup(uri) {
+
+            var hash = uri.indexOf('#'),
+                id   = (hash >= 0) ? uri.slice(0, hash) : uri,
+                node = documents[id];
+
+            if (node === undefined) { throw new Error('Cannot resolve ' + uri + ': no schema ' + id); }
+
+            ((hash >= 0) ? uri.slice(hash + 1) : '').split('/').slice(1).forEach(function(token) {
+                var key = decodeURIComponent(token).replace(/~1/g, '/').replace(/~0/g, '~');
+                node = (isObject(node) || Array.isArray(node)) ? node[key] : undefined;
+                if (node === undefined) { throw new Error('Cannot resolve ' + uri); }
+            });
+
+            return { schema: node, base: id };
+
+        }
+
+        function walk(node, from, depth) {
+
+            if (Array.isArray(node)) {
+                return node.map(function(value) { return walk(value, from, depth); });
+            }
+            if (!isObject(node)) { return node; }
+
+            var out = {};
+
+            if (typeof node.$ref === 'string') {
+
+                if (depth > 32) { throw new Error('Reference loop at ' + node.$ref); }
+
+                var uri      = resolveUri(node.$ref, from),
+                    replaced = replace ? replace(uri) : undefined,
+                    target   = (replaced !== undefined) ? { schema: replaced, base: from } : lookup(uri);
+
+                out = walk(target.schema, target.base, depth + 1);
+
+            }
+
+            Object.keys(node).forEach(function(key) {
+                if (key === '$ref' || key === '$id' || key === '$schema' || key === '$defs') { return; }
+                out[key] = walk(node[key], from, depth);
+            });
+
+            return out;
+
+        }
+
+        return walk(schema, base, 0);
+
     }
 
 
@@ -298,6 +402,8 @@
         mergePatch:     mergePatch,
         diffPatch:      diffPatch,
         pointerToken:   pointerToken,
+        resolveUri:     resolveUri,
+        inlineSchema:   inlineSchema,
         opError:        opError,
         seconds:        seconds,
         timeSpan:       timeSpan,

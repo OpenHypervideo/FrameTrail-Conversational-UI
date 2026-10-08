@@ -984,6 +984,34 @@
             "user": { "id": "2", "name": "Grace", "role": "user" },
             "op": { "op": "remove_overlay", "input": { "ref": "2026-10-01T10:00:02.000Z" } },
             "error": { "code": "notAllowed" }
+        },
+        {
+            "name": "add_overlay: not after the end of the video",
+            "op": {
+                "op": "add_overlay",
+                "input": {
+                    "start": 650,
+                    "end": 660,
+                    "box": { "left": 10, "top": 10, "width": 20, "height": 10 },
+                    "body": {
+                        "frametrail:type": "text",
+                        "frametrail:name": "Late",
+                        "frametrail:attributes": { "text": "&lt;p&gt;Late&lt;/p&gt;" }
+                    }
+                }
+            },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/start", "message": "must be before the end of the video (600)" }]
+            }
+        },
+        {
+            "name": "update_overlay: not moved past the end of the video",
+            "op": { "op": "update_overlay", "input": { "ref": "2026-10-01T10:00:00.000Z", "start": 600, "end": 610 } },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/start", "message": "must be before the end of the video (600)" }]
+            }
         }
     ]
 }

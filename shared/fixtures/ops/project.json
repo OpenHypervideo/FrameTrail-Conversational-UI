@@ -174,6 +174,97 @@
                 "code": "invalid",
                 "errors": [{ "path": "/hypervideoId", "message": "must be \"7\", the hypervideo it is applied to" }]
             }
+        },
+        {
+            "name": "add_chapter: not before the in point of a trimmed video",
+            "hypervideoId": "7",
+            "op": { "op": "add_chapter", "input": { "start": 5, "title": "Early" } },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/start", "message": "must be after the start of the video (12)" }]
+            }
+        },
+        {
+            "name": "add_overlay: not wholly before the in point",
+            "hypervideoId": "7",
+            "op": {
+                "op": "add_overlay",
+                "input": {
+                    "start": 2,
+                    "end": 10,
+                    "box": { "left": 10, "top": 10, "width": 20, "height": 10 },
+                    "body": {
+                        "frametrail:type": "text",
+                        "frametrail:name": "Late",
+                        "frametrail:attributes": { "text": "&lt;p&gt;Late&lt;/p&gt;" }
+                    }
+                }
+            },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/end", "message": "must be after the start of the video (12)" }]
+            }
+        },
+        {
+            "name": "add_overlay: partly before the in point goes through (lint warns)",
+            "hypervideoId": "7",
+            "op": {
+                "op": "add_overlay",
+                "input": {
+                    "start": 5,
+                    "end": 20,
+                    "box": { "left": 10, "top": 10, "width": 20, "height": 10 },
+                    "body": {
+                        "frametrail:type": "text",
+                        "frametrail:name": "Late",
+                        "frametrail:attributes": { "text": "&lt;p&gt;Late&lt;/p&gt;" }
+                    }
+                }
+            },
+            "result": {
+                "kind": "overlays",
+                "ref": "2026-10-14T17:46:40.000Z",
+                "type": "text",
+                "name": "Late",
+                "start": 5,
+                "end": 20,
+                "box": { "left": 10, "top": 10, "width": 20, "height": 10 },
+                "text": "Late"
+            },
+            "inverse": { "method": "remove", "args": ["overlays", "2026-10-14T17:46:40.000Z"] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/hypervideos/7/hypervideo/contents/0",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=5,20&xywh=percent:10,10,20,10",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "https://example.org/media/field-trip.mp4"
+                        },
+                        "body": {
+                            "frametrail:type": "text",
+                            "frametrail:name": "Late",
+                            "frametrail:attributes": { "text": "&lt;p&gt;Late&lt;/p&gt;" }
+                        },
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Overlay",
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-14T17:46:40.000Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                }
+            ]
         }
     ]
 }

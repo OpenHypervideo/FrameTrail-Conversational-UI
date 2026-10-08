@@ -39,9 +39,9 @@
                     "type": "string"
                 },
                 "kind": {
-                    "description": "What it reads or changes. items: overlays, annotations, chapters and code snippets.",
+                    "description": "What it reads or changes. items: overlays, annotations, chapters and code snippets; types: the types of content items can have.",
                     "type": "string",
-                    "enum": ["hypervideos", "hypervideo", "items", "overlays", "annotations", "chapters", "subtitles", "contentViews"]
+                    "enum": ["hypervideos", "hypervideo", "items", "overlays", "annotations", "chapters", "subtitles", "contentViews", "types"]
                 },
                 "effect": {
                     "description": "Whether it changes anything. Only write operations go into changesets.",
@@ -54,11 +54,11 @@
                     "enum": ["instance", "hypervideo"]
                 },
                 "preconditions": {
-                    "description": "What must hold before it runs, checked in this order after the input. canEditHypervideo: the user may change the hypervideo's overlays, chapters, subtitles and content views (an admin or its creator; in the editor also edit mode and no lock held by someone else); refused with notAllowed. canAnnotate: the user may add annotations and change their own; notAllowed. itemExists: the item the input's ref names exists (for annotations, one of the user's own unless the input names a creator); notFound. chapterStartFree: no other chapter starts at the input's start; invalid at /start. subtitles: the hypervideo has subtitles, in the input's lang if given; notFound.",
+                    "description": "What must hold before it runs, checked in this order after the input. canEditHypervideo: the user may change the hypervideo's overlays, chapters, subtitles and content views (an admin or its creator; in the editor also edit mode and no lock held by someone else); refused with notAllowed. canAnnotate: the user may add annotations and change their own; notAllowed. itemExists: the item the input's ref names exists (for annotations, one of the user's own unless the input names a creator); notFound. withinVideo: the input's start and end (when given) leave the item where the player reaches it, when the store knows the video's time range: a start before the end of the video, an end after its start, a chapter not before its start; invalid at /start or /end. chapterStartFree: no other chapter starts at the input's start; invalid at /start. subtitles: the hypervideo has subtitles, in the input's lang if given; notFound.",
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "enum": ["canEditHypervideo", "canAnnotate", "itemExists", "chapterStartFree", "subtitles"]
+                        "enum": ["canEditHypervideo", "canAnnotate", "itemExists", "withinVideo", "chapterStartFree", "subtitles"]
                     }
                 },
                 "input": {

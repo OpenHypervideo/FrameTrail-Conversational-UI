@@ -382,12 +382,42 @@
             }
         },
         {
+            "name": "describe_type",
+            "description": "Describe a type of content (the body's frametrail:type): whether overlays and annotations can use it, where the item's src goes in the body (source, value, or nowhere), and the JSON Schema of its frametrail:attributes, with their names, values and defaults. Call it before adding or changing an item of a type whose attributes you do not know.",
+            "kind": "types",
+            "effect": "read",
+            "scope": "instance",
+            "preconditions": [],
+            "input": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                    "type": {"description": "The type: text, html, quiz, hotspot, image, video, webpage, …", "type": "string"}
+                }
+            },
+            "output": {
+                "type": "object",
+                "required": ["type", "overlay", "annotation", "src", "attributes"],
+                "properties": {
+                    "type": {"type": "string"},
+                    "overlay": {"description": "Overlays can be of this type.", "type": "boolean"},
+                    "annotation": {"description": "Annotations can be of this type.", "type": "boolean"},
+                    "src": {
+                        "description": "Where the body holds the file name or URL it shows: in source, in value, or nowhere (null).",
+                        "type": ["string", "null"],
+                        "enum": ["source", "value", null]
+                    },
+                    "attributes": {"description": "JSON Schema of the body's frametrail:attributes for this type.", "type": "object"}
+                }
+            }
+        },
+        {
             "name": "add_overlay",
             "description": "Add an overlay: content shown over the video from start to end, in a box positioned in percent of the video frame. body says what it shows: frametrail:type (text, image, hotspot, quiz, …), frametrail:name, and frametrail:attributes with that type's settings; media types take their file name or URL in source. Returns the new overlay in short form, with its ref.",
             "kind": "overlays",
             "effect": "write",
             "scope": "hypervideo",
-            "preconditions": ["canEditHypervideo"],
+            "preconditions": ["canEditHypervideo", "withinVideo"],
             "input": {
                 "type": "object",
                 "required": ["start", "end", "body"],
@@ -416,10 +446,14 @@
                         "items": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/keyframe"}
                     },
                     "body": {
-                        "$ref": "https://frametrail.org/schemas/1/content-item.schema.json#/$defs/overlay/properties/body"
+                        "$ref": "https://frametrail.org/schemas/1/content-item.schema.json#/$defs/overlay/properties/body",
+                        "description": "What the overlay shows, in FrameTrail's stored form: frametrail:type (text, html, quiz, hotspot, image, video, youtube, webpage, wikipedia, location, cursor, counter, chart, …), frametrail:name, frametrail:attributes with the type's settings (describe_type tells them), and the file name or URL in source or value as describe_type says."
                     },
                     "tags": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/tags"},
-                    "events": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/overlayEvents"}
+                    "events": {
+                        "$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/overlayEvents",
+                        "description": "JavaScript run on the overlay's events (onReady, onStart, onEnd, onClick), e.g. pausing the video when a quiz appears. Only when code is asked for: motion is the attribute animation."
+                    }
                 }
             },
             "output": {"$ref": "#/$defs/item"}
@@ -430,7 +464,7 @@
             "kind": "overlays",
             "effect": "write",
             "scope": "hypervideo",
-            "preconditions": ["canEditHypervideo", "itemExists"],
+            "preconditions": ["canEditHypervideo", "itemExists", "withinVideo"],
             "input": {
                 "type": "object",
                 "required": ["ref"],
@@ -469,7 +503,7 @@
                         "items": {"type": "string"}
                     },
                     "events": {
-                        "description": "Changes to the events as a JSON Merge Patch; null removes them all.",
+                        "description": "Changes to the events (JavaScript run on onReady, onStart, onEnd, onClick) as a JSON Merge Patch; null removes them all. Only when code is asked for: motion is the attribute animation.",
                         "type": ["object", "null"]
                     }
                 }
@@ -496,7 +530,7 @@
             "kind": "annotations",
             "effect": "write",
             "scope": "hypervideo",
-            "preconditions": ["canAnnotate"],
+            "preconditions": ["canAnnotate", "withinVideo"],
             "input": {
                 "type": "object",
                 "required": ["start", "end", "body"],
@@ -512,7 +546,8 @@
                         "minimum": 0
                     },
                     "body": {
-                        "$ref": "https://frametrail.org/schemas/1/annotation-file.schema.json#/$defs/annotation/properties/body"
+                        "$ref": "https://frametrail.org/schemas/1/annotation-file.schema.json#/$defs/annotation/properties/body",
+                        "description": "What the annotation shows, in FrameTrail's stored form: frametrail:type (text, image, video, youtube, webpage, wikipedia, location, …), frametrail:name, frametrail:attributes with the type's settings (describe_type tells them), and the file name or URL in source or value as describe_type says."
                     },
                     "tags": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/tags"}
                 }
@@ -525,7 +560,7 @@
             "kind": "annotations",
             "effect": "write",
             "scope": "hypervideo",
-            "preconditions": ["canAnnotate", "itemExists"],
+            "preconditions": ["canAnnotate", "itemExists", "withinVideo"],
             "input": {
                 "type": "object",
                 "required": ["ref"],
@@ -576,7 +611,7 @@
             "kind": "chapters",
             "effect": "write",
             "scope": "hypervideo",
-            "preconditions": ["canEditHypervideo", "chapterStartFree"],
+            "preconditions": ["canEditHypervideo", "withinVideo", "chapterStartFree"],
             "input": {
                 "type": "object",
                 "required": ["start", "title"],
@@ -597,7 +632,7 @@
             "kind": "chapters",
             "effect": "write",
             "scope": "hypervideo",
-            "preconditions": ["canEditHypervideo", "itemExists", "chapterStartFree"],
+            "preconditions": ["canEditHypervideo", "itemExists", "withinVideo", "chapterStartFree"],
             "input": {
                 "type": "object",
                 "required": ["ref"],
@@ -670,7 +705,10 @@
                     "contentViews": {
                         "description": "The views of the area, in order; an empty list leaves it empty.",
                         "type": "array",
-                        "items": {"$ref": "https://frametrail.org/schemas/1/hypervideo.schema.json#/$defs/contentView"}
+                        "items": {
+                            "$ref": "https://frametrail.org/schemas/1/hypervideo.schema.json#/$defs/contentView",
+                            "description": "A content view as stored in hypervideo.json: type (TimedContent, CustomHTML, Transcript, Timelines or Chapters), name (its tab label), and as needed contentSize (small, medium, large), initClosed, html (CustomHTML) or transcriptSource (Transcript: a subtitle language)."
+                        }
                     }
                 }
             },

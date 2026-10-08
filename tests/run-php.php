@@ -97,6 +97,14 @@ function ftExtensionStorage($name) {
 
 }
 
+// Stand-in for FrameTrail's function: the secrets in _data/.auth/<name>.php,
+// here whatever a check puts into $GLOBALS["secrets"].
+function ftExtensionSecrets($name) {
+
+    return ($name === "conversational-ui" && isset($GLOBALS["secrets"]) && is_array($GLOBALS["secrets"])) ? $GLOBALS["secrets"] : array();
+
+}
+
 $before   = get_defined_functions()["user"];
 $manifest = includeManifest($dir . "/extension.php");
 $declared = array_values(array_diff(get_defined_functions()["user"], $before));
@@ -158,6 +166,21 @@ if (isset($actions["conversationalUiStatus"]) && is_callable($actions["conversat
     check("conversationalUiStatus names the version" . ($built ? " the build wrote in" : ", \"dev\" before the build"),
         is_string($version) && ($built ? ($version !== "" && strpos($version, "__") === false) : $version === "dev"),
         var_export($version, true));
+
+    // How the chat panel may reach Mistral: own keys only when the secrets say true, no relay yet.
+    $capabilities = function($secrets) use ($actions, $context) {
+        $GLOBALS["secrets"] = $secrets;
+        $answer = call_user_func($actions["conversationalUiStatus"], $context);
+        unset($GLOBALS["secrets"]);
+        return (is_array($answer) && isset($answer["response"]["capabilities"])) ? $answer["response"]["capabilities"] : null;
+    };
+
+    check("conversationalUiStatus: no relay, no own keys without secrets",
+        $capabilities(array()) === array("relay" => false, "ownKey" => false), json_encode($capabilities(array())));
+    check("conversationalUiStatus: own keys when allowOwnKey is true",
+        $capabilities(array("allowOwnKey" => true)) === array("relay" => false, "ownKey" => true), json_encode($capabilities(array("allowOwnKey" => true))));
+    check("conversationalUiStatus: only true allows own keys",
+        $capabilities(array("allowOwnKey" => "yes")) === array("relay" => false, "ownKey" => false), json_encode($capabilities(array("allowOwnKey" => "yes"))));
 
 }
 

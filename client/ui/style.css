@@ -1,9 +1,317 @@
-/* FrameTrail-Conversational-UI — the side panel's shell. Its content uses
+/* FrameTrail-Conversational-UI — the chat panel. Its content uses
    FrameTrail's own classes (generic.css) and custom properties, so the themes
-   and the editor's palette apply; rules here are scoped to the panel. */
+   and the editor's palette apply; rules here are scoped to the panel. While
+   editing, the side panel draws text in --primary-bg-color on
+   --primary-fg-color. */
+
+.sidePanelItem[data-extension="conversational-ui"] .sidePanelContent {
+    padding: 0;
+    overflow: hidden;
+}
 
 .sidePanelItem[data-extension="conversational-ui"] .conversationalUi {
     display: flex;
     flex-direction: column;
     height: 100%;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+/* The bar: model, new conversation, settings */
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiBar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px 6px 12px;
+    border-bottom: 1px solid var(--secondary-bg-color);
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiStatus {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    opacity: .75;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiBar button {
+    flex: 0 0 auto;
+    padding: 2px 7px;
+    border-color: transparent;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiBar button[hidden] {
+    display: none;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiBar button.active {
+    border-color: var(--primary-bg-color);
+}
+
+/* Settings */
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiSettingsBox {
+    flex: 0 1 auto;
+    max-height: 60%;
+    overflow: auto;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--secondary-bg-color);
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiSettingsBox[hidden] {
+    display: none;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiField {
+    margin-bottom: 10px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiField > label {
+    display: block;
+    font-weight: 600;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiField input[type="password"] {
+    width: 100%;
+    box-sizing: border-box;
+    margin-right: 0;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiConnection {
+    margin: 0 0 10px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiHint {
+    margin: 4px 0;
+    font-size: 12px;
+    opacity: .8;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiHint a,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiSettings .message {
+    margin: 6px 0 0;
+}
+
+/* The conversation */
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiLogs {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 10px 12px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiIntro p {
+    margin: 0 0 10px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiExamples {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiExample {
+    font-size: 13px;
+    white-space: normal;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiTurn {
+    margin-bottom: 16px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiMessage {
+    overflow-wrap: anywhere;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiUser {
+    margin: 0 0 8px 24px;
+    padding: 6px 10px;
+    border-radius: var(--input-border-radius);
+    background: var(--secondary-fg-color);
+    white-space: pre-wrap;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant {
+    margin: 6px 0;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant p,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant ul,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant ol,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant pre {
+    margin: 0 0 6px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant ul,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant ol {
+    padding-left: 20px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant code,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiTool pre {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant pre {
+    overflow: auto;
+    padding: 6px;
+    background: var(--secondary-fg-color);
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiContinued,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiPending,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiWaiting,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiCheck,
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiState {
+    margin: 4px 0;
+    font-size: 12px;
+    opacity: .75;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiPending::after {
+    content: '';
+    display: inline-block;
+    width: 1.2em;
+    text-align: left;
+    animation: conversationalUiDots 1.2s steps(4, end) infinite;
+}
+
+@keyframes conversationalUiDots {
+    0%   { content: ''; }
+    25%  { content: '.'; }
+    50%  { content: '..'; }
+    75%  { content: '...'; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidePanelItem[data-extension="conversational-ui"] .conversationalUiPending::after {
+        animation: none;
+    }
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiTool {
+    margin: 2px 0;
+    font-size: 12px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiTool summary {
+    padding: 1px 0;
+    opacity: .8;
+    overflow-wrap: anywhere;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiTool.failed summary {
+    color: #cd0a0a;
+    opacity: 1;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiTool pre {
+    max-height: 220px;
+    overflow: auto;
+    margin: 2px 0 6px;
+    padding: 6px;
+    background: var(--secondary-fg-color);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiFooter .message {
+    margin: 6px 0;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiFindings {
+    margin: 6px 0;
+    font-size: 12px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiFindings ul {
+    margin: 4px 0;
+    padding-left: 18px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiFindings li.error {
+    color: #cd0a0a;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiActions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiActions button [class^="icon-"] {
+    margin-right: 4px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiUndo.stale {
+    opacity: .55;
+}
+
+/* Why the panel cannot be used yet */
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiNotice {
+    flex: 0 0 auto;
+    margin: 0 12px 8px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiNotice button {
+    margin-left: 4px;
+}
+
+/* The composer */
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiComposer {
+    flex: 0 0 auto;
+    padding: 8px 12px 10px;
+    border-top: 1px solid var(--secondary-bg-color);
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiComposer textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 6px;
+    resize: vertical;
+    min-height: 60px;
+    max-height: 240px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiComposerRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiComposerRow .conversationalUiHint {
+    flex: 1 1 auto;
+    margin: 0;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiSend {
+    flex: 0 0 auto;
+    min-width: 64px;
+    text-align: center;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiSend.conversationalUiStop {
+    background-color: var(--primary-bg-color);
+    color: var(--primary-fg-color);
+}
+
+.sidePanelItem[data-extension="conversational-ui"] :is(button, summary, a, textarea, input, select):focus-visible {
+    outline: 2px solid var(--highlight-color);
+    outline-offset: 1px;
 }

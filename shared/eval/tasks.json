@@ -1,0 +1,107 @@
+{
+    "description": "The tool-calling evaluation (scripts/eval-models.mjs): requests a user might make in the editor, each sent as the first message of a new conversation about the lecture fixture, and what must hold afterwards. checks: noChanges (the data is as before), answer (the model's last words match a pattern, ignoring case), chapter / noChapter (a chapter starting in [from, to], with a title matching a pattern), chapters (how many, min and max), item / noItem (an overlay or annotation: type, start and end within ranges, its text or name matching, attributes equal to values (as text) or matching patterns, its box within ranges), layout (an area's content views include a type), lintErrors (lint's errors after the turn).",
+    "data": "lecture",
+    "user": { "id": "1", "name": "Ada", "role": "user" },
+    "duration": 600,
+    "tasks": [
+        {
+            "name": "question: the chapters",
+            "request": "How many chapters does this video have, and what are they called?",
+            "checks": [{ "noChanges": true }, { "answer": "introduction" }, { "answer": "membranes" }, { "answer": "transport" }]
+        },
+        {
+            "name": "question: what is said",
+            "request": "What does the lecture say about osmosis?",
+            "checks": [{ "noChanges": true }, { "answer": "water" }]
+        },
+        {
+            "name": "idea: propose, change nothing",
+            "request": "The start of this video feels a bit boring. Any ideas?",
+            "checks": [{ "noChanges": true }]
+        },
+        {
+            "name": "add a chapter",
+            "request": "Add a chapter called \"Summary\" at 8:30.",
+            "checks": [{ "chapter": { "from": 510, "to": 510, "title": "^summary$" } }, { "chapters": { "min": 4, "max": 4 } }, { "lintErrors": 0 }]
+        },
+        {
+            "name": "rename a chapter",
+            "request": "Rename the chapter \"Transport\" to \"Active transport\".",
+            "checks": [{ "chapter": { "from": 300, "to": 300, "title": "^active transport$" } }, { "chapters": { "min": 3, "max": 3 } }]
+        },
+        {
+            "name": "remove a chapter",
+            "request": "Remove the chapter \"Membranes\".",
+            "checks": [{ "noChapter": { "from": 120, "to": 120 } }, { "chapters": { "min": 2, "max": 2 } }]
+        },
+        {
+            "name": "chapters from the transcript",
+            "request": "Add a chapter at each topic change in the first 5 minutes.",
+            "checks": [
+                { "chapter": { "from": 185, "to": 195, "title": "diffus" } },
+                { "chapter": { "from": 235, "to": 245, "title": "osmos" } },
+                { "chapter": { "from": 0, "to": 0, "title": "introduction" } },
+                { "chapter": { "from": 120, "to": 120, "title": "membranes" } },
+                { "chapters": { "min": 5, "max": 6 } },
+                { "lintErrors": 0 }
+            ]
+        },
+        {
+            "name": "a chapter after the end is not added",
+            "request": "Add a chapter called \"Bonus\" at 15:00.",
+            "checks": [{ "noChapter": { "from": 600, "to": 100000 } }]
+        },
+        {
+            "name": "add a text overlay",
+            "request": "Add a text overlay saying \"Welcome to lecture 3\" from 0:10 to 0:20, across the top of the video.",
+            "checks": [
+                { "item": { "kind": "overlays", "type": "text", "start": [9.5, 10.5], "end": [19.5, 20.5], "text": "welcome to lecture 3", "box": { "top": [0, 30] } } },
+                { "lintErrors": 0 }
+            ]
+        },
+        {
+            "name": "add a hotspot that jumps",
+            "request": "Add a hotspot at 2:10 for 5 seconds that jumps to 5:00 when clicked.",
+            "checks": [
+                { "item": { "kind": "overlays", "type": "hotspot", "start": [129.5, 130.5], "end": [134.5, 135.5], "attributes": { "action": "jumpToTime", "actionTarget": "300" } } },
+                { "lintErrors": 0 }
+            ]
+        },
+        {
+            "name": "add a quiz",
+            "request": "Add a multiple-choice quiz overlay at 4:10 for 20 seconds asking whether osmosis needs energy, with the answers Yes and No; No is correct.",
+            "checks": [
+                { "item": { "kind": "overlays", "type": "quiz", "start": [249.5, 250.5], "end": [269.5, 270.5], "text": "osmosis", "attributes": { "questionType": "multipleChoice", "answers.0.text": { "matches": "^yes" }, "answers.1.text": { "matches": "^no" }, "answers.1.correct": "true" } } },
+                { "lintErrors": 0 }
+            ]
+        },
+        {
+            "name": "change an overlay's text",
+            "request": "In the title card, replace the line \"How substances cross the cell membrane\" with \"Cell Biology: Lecture 3\".",
+            "checks": [
+                { "item": { "kind": "overlays", "type": "text", "name": "^title card$", "start": [0, 0], "end": [8, 8], "text": "^cell biology: lecture 3$" } },
+                { "lintErrors": 0 }
+            ]
+        },
+        {
+            "name": "animate an overlay",
+            "request": "Make the title card fade in.",
+            "checks": [{ "item": { "kind": "overlays", "type": "text", "name": "^title card$", "attributes": { "animation.in.preset": "fadeIn" } } }]
+        },
+        {
+            "name": "remove an overlay",
+            "request": "Delete the \"Moving pointer\" hotspot.",
+            "checks": [{ "noItem": { "kind": "overlays", "name": "^moving pointer$" } }, { "item": { "kind": "overlays", "name": "^title card$" } }]
+        },
+        {
+            "name": "add an annotation",
+            "request": "Add a note from 1:00 to 1:30: \"Remember: diffusion needs no energy.\"",
+            "checks": [{ "item": { "kind": "annotations", "type": "text", "start": [59.5, 60.5], "end": [89.5, 90.5], "text": "diffusion needs no energy" } }]
+        },
+        {
+            "name": "the layout",
+            "request": "Also show the transcript in the area below the video, after the notes.",
+            "checks": [{ "layout": { "area": "bottom", "includes": "Transcript" } }, { "layout": { "area": "bottom", "includes": "TimedContent" } }]
+        }
+    ]
+}

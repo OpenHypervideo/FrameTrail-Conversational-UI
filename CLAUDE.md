@@ -6,17 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FrameTrail-Conversational-UI is an add-on for [FrameTrail](https://github.com/OpenHypervideo/FrameTrail) that lets people edit a hypervideo in natural language, in a chat panel docked beside the player in the editor. The panel talks to Mistral's API through a relay on the server (server mode) or directly from the browser (every other storage mode).
 
-What the panel's model can do is defined once, declaratively (`shared/operations.json`), and carried out in the browser by the operations in `client/ops/`, against the open editor through FrameTrail's edit API. Lint rules (`shared/lint.json`, `client/lint/`) check a hypervideo after changes. Conformance fixtures (`shared/fixtures/`) say what both must do.
+What the panel's model can do is defined once, declaratively (`shared/operations.json`), and carried out in the browser by the operations in `client/ops/`, against the open editor through FrameTrail's edit API. Lint rules (`shared/lint.json`, `client/lint/`) check a hypervideo after changes. Conformance fixtures (`shared/fixtures/`) say what both must do. The conversation (`client/agent/`) sends the user's messages, the system prompt (`shared/prompts/`) and the operations as tools to Mistral (`client/models/`) and carries out the tool calls; the panel (`client/ui/`) shows it.
 
-The server part (PHP) is small: a status action now, the model relay and transcription later. There is no server-side surface for agents outside the editor (an MCP endpoint, a command-line tool): it was planned and left out of v1, so the operations exist in JavaScript only.
+The server part (PHP) is small: a status action (which also tells the panel how it may reach Mistral) now, the model relay and transcription later. There is no server-side surface for agents outside the editor (an MCP endpoint, a command-line tool): it was planned and left out of v1, so the operations exist in JavaScript only.
 
-Work proceeds in phases; A0 (scaffold), A1 (operations, changesets, the interpreter) and A2 (lint) are done, A3–A6 (the server side for external agents) were dropped, the chat panel (A7), the relay (A8) and transcription (A9) follow. The phase plan is kept outside this repository.
+Work proceeds in phases; A0 (scaffold), A1 (operations, changesets, the interpreter), A2 (lint) and A7 (the chat panel) are done, A3–A6 (the server side for external agents) were dropped, the relay (A8) and transcription (A9) follow. The phase plan is kept outside this repository.
 
 ## Relationship to FrameTrail
 
 The add-on lives entirely outside FrameTrail and uses only its generic, documented building blocks:
 
-- **Browser:** `FrameTrail.registerExtension()` and its slots (`sidePanel`, `titlebarAction`, `editPanel`), `edit` (the edit API: stored-format items, JSON Merge Patch updates, `transaction()` as one undo step, the busy editor and its Stop, and the reads around the data: `getInfo()`, `getUser()`, `permission(kind)`, `listHypervideos()`), `Localization.addLabels()`, `StorageManager.serverPost()` / `extensionURL()`, and the pure globals in FrameTrail's bundle: `FrameTrailSerializer`, `FrameTrailKeyframes`, `FrameTrailSchema` + `FrameTrailSchemas`.
+- **Browser:** `FrameTrail.registerExtension()` and its slots (`sidePanel`, `titlebarAction`, `editPanel`) and hooks, `edit` (the edit API: stored-format items, JSON Merge Patch updates, `transaction()` as one undo step, the busy editor and its Stop, and the reads around the data: `getInfo()`, `getUser()`, `permission(kind)`, `listHypervideos()`), `Localization.addLabels()`, `StorageManager.serverPost()` / `extensionURL()`, the states `storageMode`, `viewMode`, `editMode`, `editBusy`, `UndoManager`'s `getUndoDescription()`, `getRedoDescription()`, `undo()`, `redo()` and its `undoStateChanged` event (the panel's "Undo this turn"), and the pure globals in FrameTrail's bundle: `FrameTrailSerializer`, `FrameTrailKeyframes`, `FrameTrailSchema` + `FrameTrailSchemas`.
 - **Server:** the server extension manifest, `requireLogin()` / `userCheckLogin()`, `ftExtensionStorage()`, `ftExtensionSecrets()`.
 - **Data:** the JSON Schemas in FrameTrail's `schemas/`, `docs/DATA-MODEL.md`, and the data sets in `tests/fixtures/data/` (the tests read and lint them).
 
@@ -50,13 +50,14 @@ What exists, and the phase that fills the rest:
 client/                     → build/client/frametrail-conversational-ui.js + .css
 ├── namespace.js            the global FrameTrailConversationalUI (first in the build)
 ├── locale/                 en.js, de.js, fr.js
-├── ui/                     style.css (the panel shell); panel, settings, messages (A7)
-├── ops/                    the operations: util.js (JSON, merge patches, errors, Media Fragments,
-│                           plain text, WebVTT), items.js (short forms; items and patches from
-│                           input), model-store.js, live-store.js, interpreter.js
+├── ops/                    the operations: util.js (JSON, merge patches, schema references, errors,
+│                           Media Fragments, plain text, WebVTT), items.js (short forms; items and
+│                           patches from input), model-store.js, live-store.js, interpreter.js
 ├── lint/                   lint.js: the rules of shared/lint.json
-├── agent/                  (A7) conversation loop, tool dispatch
-├── models/                 (A7) adapters: mistral (direct), relay
+├── models/                 chat.js (Mistral's Chat Completions: streaming, tool calls, errors),
+│                           mistral.js (direct adapter), relay.js (through the server, A8)
+├── agent/                  tools.js (the operations as tools), agent.js (the conversation)
+├── ui/                     markdown.js, settings.js, panel.js (the chat panel), style.css
 ├── media/                  (A9) transcription client
 └── module.js               the extension entry (last in the build)
 server/                     → build/server/ = _server/extensions/conversational-ui/
@@ -69,14 +70,15 @@ shared/
 ├── changeset.schema.json   the changeset format (embedded too)
 ├── lint.json               the lint rules and the shape of their result (embedded too)
 ├── fixtures/               conformance fixtures: README.md (the rules), data/, ops/, lint/
-└── prompts/                (A7) system prompt fragments
-scripts/                    build.sh (concatenation build)
+├── prompts/                the system prompt: system.md, conversation.md, types.md (embedded too)
+└── eval/                   tasks.json: the tool-calling evaluation's requests and checks
+scripts/                    build.sh (concatenation build), eval-models.mjs (the evaluation)
 tests/                      run-js.mjs (client, operations, lint), run-php.php (server part)
 ```
 
 ## Decisions
 
-- Edits are applied directly. One chat turn is one `edit.transaction()`, so one undo step.
+- Edits are applied directly. One chat turn is one `edit.transaction()`, so one undo step; Stop (the panel's or FrameTrail's) takes the turn's changes back.
 - The requesting user is the creator of what the add-on writes; the W3C `generator` records the add-on and the model.
 - Model access follows the storage mode: server mode → the PHP relay; local folder, project file, static and in-memory → directly from the browser.
 - Model provider: Mistral only, for chat. Its API is hosted in the EU by default and accepts requests from every origin (also `file://` pages), so direct mode needs no setup. Its free plan is for trying it; on it Mistral trains on inputs and outputs unless the account opts out, and the settings say so. No other providers or local chat models in v1.
@@ -94,11 +96,49 @@ What an agent can do is defined once, in `shared/operations.json`, and carried o
 - **Inputs** are friendly where the stored form is not: time as `start` / `end` seconds, the box as `{ left, top, width, height }` percent, rotation and keyframes as numbers; the body (and events) in FrameTrail's stored form, a JSON Merge Patch when updating. Overlays, annotations and code snippets are referred to by `created` (`ref`, the user's own annotations, or `{ creator, created }` for reading others'), chapters by `start`. Results of writes are the item's short form (`$defs/item`).
 - **Stores** have the edit API's interface (`getHypervideo`, `list`, `get`, `getInfo`, `getUser`, `permission`, `listHypervideos`, `add`, `update`, `remove`, `setLayout`, `setSubtitles`, `transaction`) plus `versions()` (the compare-and-swap tokens of the files: `hypervideo`, and `annotations` where the store knows it) and, where the store knows them, `resources()` (the resources by id, or `null`; for the lint rules). `ops.liveStore(FrameTrail)` is the editor: it passes everything to `edit` and reads nothing else of FrameTrail (no `resources()`); `ops.modelStore(bundle, { user: { id, name, role }, now, duration, hypervideoId })` does the same headless to a hypervideo or project bundle, through FrameTrail's serializer and validator, and gives the bundle back as a save would write it (`data()`); it is the reference the fixtures run against.
 - **Changesets** (`shared/changeset.schema.json`): `{ id, hypervideoId, baseVersion, createdBy, generator, summary, ops: [{ op, input, inverse }] }`. `ops.apply(store, changeset, { generator })` runs all its operations in one transaction (in the editor: one undo step), or none; a given `baseVersion` that no longer holds is refused (`conflict`). Inverses are store calls (`{ method, args }`), recorded from the state before each operation: an add's is a remove, a remove's an add of the item as it was (its `created` kept), an update's the merge patch back. `ops.undo(store, changeset)` replays them, last first.
-- **A conversation turn** (A7) opens the transaction itself, `store.transaction(summary, async (tx, signal) => …)`, and runs operations one by one with `ops.record(tx, { summary, generator })`: an operation that fails changes nothing and the turn goes on; the turn is one undo step, and Stop (FrameTrail's, or `signal`) takes it back. `store.permission(kind)` tells which write tools to offer.
+- **A conversation turn** (`client/agent/agent.js`) opens the transaction itself, `store.transaction(summary, async (tx, signal) => …)`, and runs operations one by one with `ops.record(tx, { summary, generator })`: an operation that fails changes nothing and the turn goes on; the turn is one undo step, and Stop (FrameTrail's, or `signal`) takes it back. `store.permission(kind)` tells which write tools to offer (`agent.tools()`).
+- **Preconditions:** `withinVideo` refuses what the player never reaches (lint's `item-outside-video`): a start at or after the video's end, a span wholly before its start, a chapter before it. Partly outside goes through (lint warns).
+- **describe_type** tells a model a type's attributes from FrameTrail's schemas (`FrameTrailSchemas`, references inlined, legacy keys left out) and where its src goes (asked of FrameTrail's serializer, not a copy of its table). Its results are FrameTrail's data, so the fixtures hold only its refusals; `tests/run-js.mjs` checks the rest against the schemas.
 - **Errors** are op errors (`ops.util.opError`): `code` `invalid` (with `errors`, JSON Pointers into the input; in a changeset prefixed `/ops/<i>/input`), `notFound`, `notAllowed`, `conflict`, or `stopped` from the editor.
 - **generator:** every overlay and annotation an operation adds or changes gets the changeset's `generator`, replacing another tool's; an update that changes nothing writes nothing.
 
 Adding an operation: its entry in `operations.json` (keep the subset; `node tests/run-js.mjs` checks), its implementation (`IMPLEMENTATIONS` in `client/ops/interpreter.js`; the tests fail for an operation without one), any helper rule it follows in `shared/fixtures/README.md`, and fixture cases (the tests fail for an operation no case uses).
+
+## The Conversation
+
+`client/agent/agent.js`: `agent.conversation({ store, adapter, model, … })` → `send(text, handlers)`, `resume()`, `stop()`, `note(text)`, `configure()`. It knows no DOM; Node runs it too (`scripts/eval-models.mjs`, the tests).
+
+- **A turn** is the user's message and everything the model does about it, in rounds (at most 20): a request, then the tool calls it asks for, in order, each answered with its result or its op error as JSON (cut at 20,000 characters, saying so). Reads go through the store; the first write opens the turn's transaction (`store.transaction(description, …)`, so a question never makes the editor busy), and the writes go through `ops.record()` in it. The turn ends when the model answers without tools; then its transaction ends: kept (one undo step) unless stopped.
+- **Context:** the system prompt is the fragments of `shared/prompts/` (`system`, `conversation`, `types`); a user message starts with `[Hypervideo: <inspect_hypervideo>]` only when that summary changed since the model last saw it, and with notes (`[The user stopped your previous turn; …]`, an undo). The prefix stays the same from request to request, and `prompt_cache_key` is the conversation's id. Earlier turns' tool results are dropped when the conversation passes 200,000 characters.
+- **Invalid input:** reported to the model; after three invalid calls in a row the next request goes with `tool_choice: 'none'`, so it answers in words.
+- **Lint:** after a turn with changes, findings about what it touched (its refs, a related item, subtitles, chapters) go back to the model once, as a user message `[Automatic check of your changes]`, in the same transaction; what remains is `turn.lint`.
+- **Rate limits** (429, and 502–504) are waited out: `Retry-After` when the answer is readable (Mistral's CORS answer exposes no headers, so in browsers the schedule 2, 4, 8, 16, 30 s applies), at most 60 s and 6 attempts; then the turn ends `limited`, keeping its changes, and `resume()` sends the conversation again without a new message. Other failures end it `failed` (also resumable when the last message is the user's or a tool's).
+- **Stop:** `stop()` or FrameTrail's Stop (the transaction's signal) aborts the request and takes the turn's changes back; open tool calls are answered, and the next message tells the model.
+- **generator:** `{ type: 'Software', name: 'FrameTrail-Conversational-UI', model, provider: 'mistral' }` on what the turn writes.
+
+## Model Access
+
+`client/models/`: one Chat Completions client and two adapters, both speaking Mistral's API.
+
+- `models.chat(adapter, body, { signal, onText })` streams (server-sent events, text and tool calls collected across any chunking: by index, a new id under a taken index is a new call; content lists' text kept, thinking left out) and falls back to one request without streaming when nothing arrives within 30 s, after which the adapter goes without (`adapter.streaming = false`). Errors are chat errors with a `code`: `key` (401/403), `model` (400/404/422 naming the model), `rateLimit` (429, `retryAfter`), `request`, `service` (5xx), `network`, `stopped`, or the relay's `login`, `quota`, `notConfigured`, `notAllowed`.
+- `models.mistral({ key })`: `https://api.mistral.ai/v1` from the browser (Mistral's CORS allows `Authorization` and `Content-Type` from every origin); `listModels()` (chat models with tools, aliases folded in), `test(model)`.
+- `models.relay({ url, post, models })`: streaming through the route `relay`, without streaming through the action `conversationalUiChat` (A8 implements both; the contract is in `relay.js`).
+- **Which one:** server mode asks `conversationalUiStatus` → `capabilities`: `relay` → the relay (its `models`, `defaultModel`); else `ownKey` (`allowOwnKey` true in `_data/.auth/conversational-ui.php`) → direct; else none. Local folder, project file, static and in-memory modes go direct.
+- **Models:** on Mistral's free plan some models allow no requests at all (a per-minute limit of 0: every request is a 429, which a browser cannot tell from a passing limit). The default (`ui.DEFAULT_MODEL`) is chosen by the evaluation among the models a free key may use.
+
+## The Panel
+
+`client/ui/panel.js` (one per FrameTrail instance, made in the side panel's `create`), `settings.js`, `markdown.js` (the model's text as DOM, never parsed as HTML).
+
+- Conversations are kept in memory per hypervideo (switching back brings one back), never saved. A new conversation from the bar.
+- **Undo this turn:** each turn's undo description is `Assistant: <request>`, made unique among the panel's turns; the button undoes through `UndoManager` while that description is the latest step, becomes "Redo this turn" when it is the next redo, and otherwise says why not. The model gets a note.
+- **Settings:** the key (in memory; in `localStorage` only with "Remember the key on this device", with its warning), the model (from the key's models, or the relay's), a connection test, a link to Mistral's console and the note on training under the free plan. A platform that manages the instance's settings names itself in the extension's `settings` (`label`, `manageUrl`); the model is then not the user's to choose.
+- Keyboard: Enter sends, Shift+Enter a new line, Esc stops; buttons are buttons, the log is `role="log"`.
+
+## Prompts and the Evaluation
+
+- `shared/prompts/*.md` are Markdown without tabs or control characters, embedded by the build as strings (`SHARED_TEXT` in `build.sh`; the tests embed them the same way). Written for the model: what a hypervideo holds, how to work with the tools, "talk before you build", the types.
+- `scripts/eval-models.mjs` sends each request of `shared/eval/tasks.json` as a new conversation about a model store over a fixture, through the direct adapter, and checks the result (declarative checks, described in the file). It needs a key (`--key-file`, `MISTRAL_API_KEY`) and the build, and is not run in CI. Run it when the prompts, the tools or Mistral's models change; the default model follows from it.
 
 ## Lint
 
@@ -120,7 +160,7 @@ Checks of a hypervideo that its schemas cannot express, run after changes (the c
 - `namespace.js` creates the add-on's only global, `window.FrameTrailConversationalUI`. Every other file either fills it or wraps its code in an IIFE: the build concatenates all files into one script, so anything else at top level would become a global too.
 - Parts that know no FrameTrail instance (operations, lint, model adapters) hang on the namespace. Per-instance state is created in the factory in `module.js`: several FrameTrail instances can share a page.
 - `module.js` registers `conversational-ui`. The factory gets FrameTrail's internal instance (`module()`, `getState()`, `changeState()`, `edit`). The chat panel is a `sidePanel` with `when: 'edit'`.
-- Load order is `JS_FILES` / `CSS_FILES` in `scripts/build.sh`. A new file goes there; the tests fail for a file that is not listed. Data from `shared/` that the client needs is listed in `SHARED_DATA` there and written into the bundle right after `namespace.js` as a property of the namespace (declared there as `null`).
+- Load order is `JS_FILES` / `CSS_FILES` in `scripts/build.sh`. A new file goes there; the tests fail for a file that is not listed. Data from `shared/` that the client needs is listed in `SHARED_DATA` there and written into the bundle right after `namespace.js` as a property of the namespace (declared there as `null`); the prompts likewise in `SHARED_TEXT`, as `prompts.<name>` strings.
 - Code that needs FrameTrail's pure globals (`FrameTrailSerializer`, `FrameTrailKeyframes`, `FrameTrailSchema`, `FrameTrailSchemas`) reads them from `window` when it runs, not when it loads.
 - FrameTrail clears every timer on the page when it switches hypervideos: restart timers in `onHypervideoChange`.
 
@@ -169,7 +209,7 @@ php tests/run-php.php --build
 ```
 
 - `run-js.mjs` needs a FrameTrail working copy: `FRAMETRAIL_DIR`, or `--frametrail=<dir>`, or the sibling `../frametrail`. CI checks out `OpenHypervideo/FrameTrail` at `v1.4.1` (`FRAMETRAIL_REF` in both workflows), the oldest release whose pure scripts and schemas are as the add-on uses them.
-- `run-js.mjs` runs the client files in a `vm` context, in build order (with the shared data embedded as the build does), against a stand-in for FrameTrail: the build lists, the labels, the registration and the slots. For the operations and lint it first runs FrameTrail's pure scripts in the same context (`FrameTrailKeyframes`, `FrameTrailSerializer`, `FrameTrailSchema`, `FrameTrailSchemas`), as FrameTrail loads them; the live store's tests use a stand-in for the edit API. Then: the manifests (meta-schema, schemas in the subset, an implementation per operation and per lint rule, preconditions that fit the inputs), every conformance fixture against the model store, every read and lint over FrameTrail's own `tests/fixtures/data/`, the helpers, and the live store against a stand-in edit API.
+- `run-js.mjs` runs the client files in a `vm` context, in build order (with the shared data and prompts embedded as the build does), against a stand-in for FrameTrail (a small DOM, the state, StorageManager, UndoManager, edit over a model store): the build lists, the labels, the registration and the panel (access by storage mode, a turn with its undo). For the operations and lint it first runs FrameTrail's pure scripts in the same context (`FrameTrailKeyframes`, `FrameTrailSerializer`, `FrameTrailSchema`, `FrameTrailSchemas`), as FrameTrail loads them; the live store's tests use a stand-in for the edit API. Then: the manifests (meta-schema, schemas in the subset, an implementation per operation and per lint rule, preconditions that fit the inputs), every conformance fixture against the model store, every read and lint over FrameTrail's own `tests/fixtures/data/`, the helpers, the live store against a stand-in edit API, `describe_type` against FrameTrail's schemas, the tools, the chat client (streams cut anywhere, errors, the fallback), and the conversation against a scripted model (questions, changes, invalid input, rate limits, Stop, lint).
 - `run-php.php` checks the syntax of every PHP file, the guard, the manifest against the rules of FrameTrail's extension loader (names, callable handlers, requirements, prefixed functions) and the actions' answers. It needs no FrameTrail working copy.
 - The conformance fixtures in `shared/fixtures/` (rules in its README) run in `run-js.mjs`, which fails on a folder there it does not know.
 - To write a fixture case, give the input, then let `plans/a1-validation/fill-fixtures.mjs` (operations) or `plans/a2-validation/fill-lint.mjs` (lint; both git-ignored) fill in what the JavaScript does, and check every filled value by hand before keeping it: the expectations must say what is right.

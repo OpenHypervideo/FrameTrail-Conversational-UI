@@ -197,6 +197,25 @@
             }
         },
 
+        // What the player never reaches is refused, by lint's rule item-outside-video (an error there): a span that starts at or after the video's end or lies wholly before its start, a chapter outside it. Partly outside is lint's warning and goes through.
+        withinVideo: function(store, op, input) {
+
+            var info    = infoOf(store),
+                current = has(input, 'ref') ? spanOf(op.kind, store.get(op.kind, itemRef(Object.assign({ kind: op.kind }, input)))) : {},
+                start   = has(input, 'start') ? input.start : current.start,
+                end     = has(input, 'end') ? input.end : current.end;
+
+            if (!has(input, 'start') && !has(input, 'end')) { return; }
+
+            if (typeof info.end === 'number' && start >= info.end) {
+                throw opError('invalid', 'Invalid input', [{ path: has(input, 'start') ? '/start' : '/end', message: 'must be before the end of the video (' + info.end + ')' }]);
+            }
+            if (op.kind === 'chapters' ? start < info.start : (end <= info.start && start < info.start)) {
+                throw opError('invalid', 'Invalid input', [{ path: (op.kind === 'chapters' || !has(input, 'end')) ? '/start' : '/end', message: 'must be after the start of the video (' + info.start + ')' }]);
+            }
+
+        },
+
         chapterStartFree: function(store, op, input) {
             if (!has(input, 'start') || (has(input, 'ref') && input.ref === input.start)) { return; }
             if (store.get('chapters', input.start)) {
@@ -492,6 +511,86 @@
 
 
     /* ------------------------------------------------------------------ */
+    /*  Types                                                             */
+    /* ------------------------------------------------------------------ */
+
+    // Types and attributes FrameTrail's schemas keep for old data only: never offered.
+    var LEGACY_TYPES      = ['button'],
+        LEGACY_ATTRIBUTES = ['animationIn', 'animationOut', 'animationDuration'];
+
+    var SCHEMAS = 'https://frametrail.org/schemas/1/';
+
+    function frameTrailSchemas() {
+        var documents = {};
+        window.FrameTrailSchemas.forEach(function(schema) { documents[schema.$id.split('#')[0]] = schema; });
+        return documents;
+    }
+
+    // The frametrail:type values a body schema's alternatives allow.
+    function bodyTypes(body) {
+        return (Array.isArray(body.oneOf) ? body.oneOf : []).map(function(alternative) {
+            var type = isObject(alternative.properties) ? alternative.properties['frametrail:type'] : null;
+            return isObject(type) ? type.const : undefined;
+        }).filter(function(type) {
+            return typeof type === 'string' && LEGACY_TYPES.indexOf(type) < 0;
+        });
+    }
+
+    /**
+     * Where FrameTrail's serializer writes an item's src for a type: source,
+     * value, or nowhere. Asked of the serializer itself (an overlay read with
+     * its src in source, written again from its model), so it follows
+     * FrameTrail's table rather than a copy of it.
+     */
+    function srcPlace(type) {
+
+        var Serializer = window.FrameTrailSerializer,
+            probe      = 'src',
+            model      = Serializer.parseOverlay({
+                type:    'Annotation',
+                created: '1970-01-01T00:00:00.000Z',
+                body:    { 'frametrail:type': type, source: probe },
+                target:  { selector: { value: 't=0,1&xywh=percent:0,0,1,1' } }
+            });
+
+        delete model._stored;
+
+        var body = Serializer.serializeOverlay(model, {}).body;
+
+        return (body.source === probe) ? 'source' : (body.value === probe) ? 'value' : null;
+
+    }
+
+    function describeType(input) {
+
+        var documents   = frameTrailSchemas(),
+            overlays    = bodyTypes(documents[SCHEMAS + 'content-item.schema.json'].$defs.overlay.properties.body),
+            annotations = bodyTypes(documents[SCHEMAS + 'annotation-file.schema.json'].$defs.annotation.properties.body),
+            known       = overlays.concat(annotations.filter(function(type) { return overlays.indexOf(type) < 0; })),
+            id          = SCHEMAS + 'attributes/' + input.type + '.schema.json';
+
+        if (known.indexOf(input.type) < 0 || !documents[id]) {
+            throw opError('invalid', 'Invalid input', [{ path: '/type', message: 'is not a type; one of ' + known.join(', ') }]);
+        }
+
+        var attributes = util.inlineSchema(documents[id], id, documents);
+
+        if (isObject(attributes.properties)) {
+            LEGACY_ATTRIBUTES.forEach(function(key) { delete attributes.properties[key]; });
+        }
+
+        return {
+            type:       input.type,
+            overlay:    overlays.indexOf(input.type) >= 0,
+            annotation: annotations.indexOf(input.type) >= 0,
+            src:        srcPlace(input.type),
+            attributes: attributes
+        };
+
+    }
+
+
+    /* ------------------------------------------------------------------ */
     /*  Writing                                                           */
     /* ------------------------------------------------------------------ */
 
@@ -551,6 +650,10 @@
 
         find_in_transcript: function(store, input) {
             return { result: findInTranscript(store, input) };
+        },
+
+        describe_type: function(store, input) {
+            return { result: describeType(input) };
         },
 
         add_overlay: function(store, input, context) {

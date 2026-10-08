@@ -84,6 +84,22 @@
             "name": "remove_chapter: no such chapter",
             "op": { "op": "remove_chapter", "input": { "ref": 121 } },
             "error": { "code": "notFound" }
+        },
+        {
+            "name": "add_chapter: not at or after the end of the video",
+            "op": { "op": "add_chapter", "input": { "start": 600, "title": "After" } },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/start", "message": "must be before the end of the video (600)" }]
+            }
+        },
+        {
+            "name": "update_chapter: not moved past the end of the video",
+            "op": { "op": "update_chapter", "input": { "ref": 300, "start": 610 } },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/start", "message": "must be before the end of the video (600)" }]
+            }
         }
     ]
 }

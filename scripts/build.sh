@@ -61,6 +61,20 @@ JS_FILES=(
     # Lint rules
     "lint/lint.js"
 
+    # Model access
+    "models/chat.js"
+    "models/mistral.js"
+    "models/relay.js"
+
+    # The conversation
+    "agent/tools.js"
+    "agent/agent.js"
+
+    # The panel
+    "ui/markdown.js"
+    "ui/settings.js"
+    "ui/panel.js"
+
     # Extension entry
     "module.js"
 )
@@ -73,6 +87,17 @@ SHARED_DATA=(
     "operations:operations.json"
     "changesetSchema:changeset.schema.json"
     "lintRules:lint.json"
+)
+
+#  Text from shared/ (Markdown), written in after
+#  the shared data as one object of strings,
+#  window.FrameTrailConversationalUI.prompts:
+#  "<name>:<file>".
+
+SHARED_TEXT=(
+    "system:prompts/system.md"
+    "conversation:prompts/conversation.md"
+    "types:prompts/types.md"
 )
 
 CSS_FILES=(
@@ -125,9 +150,34 @@ embed_shared() {
         cat "$SHARED_DIR/$file" >> "$out"
         echo ";" >> "$out"
     done
+    echo "/* === shared/prompts === */" >> "$out"
+    echo "window.FrameTrailConversationalUI.prompts = {" >> "$out"
+    local i=0
+    for entry in "${SHARED_TEXT[@]}"; do
+        property="${entry%%:*}"
+        file="${entry#*:}"
+        if [ ! -f "$SHARED_DIR/$file" ]; then
+            echo "ERROR: missing shared file: $file" >&2
+            exit 1
+        fi
+        i=$((i + 1))
+        printf '    "%s": ' "$property" >> "$out"
+        js_string "$SHARED_DIR/$file" >> "$out"
+        if [ "$i" -lt "${#SHARED_TEXT[@]}" ]; then echo "," >> "$out"; else echo "" >> "$out"; fi
+    done
+    echo "};" >> "$out"
 }
 
-echo "Concatenating JS (${#JS_FILES[@]} files, ${#SHARED_DATA[@]} shared)..."
+# A text file as a JavaScript string: backslashes and double quotes escaped,
+# lines joined with \n, the last line break dropped. Tabs and other control
+# characters are not allowed in these files (tests/run-js.mjs checks).
+js_string() {
+    printf '"'
+    sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' "$1" | awk '{ printf "%s%s", (NR > 1 ? "\\n" : ""), $0 }'
+    printf '"'
+}
+
+echo "Concatenating JS (${#JS_FILES[@]} files, ${#SHARED_DATA[@]} shared, ${#SHARED_TEXT[@]} prompts)..."
 concat "$BUILD_DIR/client/$BUNDLE.js" ";" "${JS_FILES[@]}"
 
 echo "Concatenating CSS (${#CSS_FILES[@]} files)..."

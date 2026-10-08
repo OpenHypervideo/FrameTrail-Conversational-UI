@@ -646,6 +646,21 @@
             "error": { "code": "invalid", "errors": [{ "path": "/query", "message": "must match the pattern \\S" }] }
         },
         {
+            "name": "describe_type needs a type",
+            "op": { "op": "describe_type", "input": {} },
+            "error": { "code": "invalid", "errors": [{ "path": "/type", "message": "is required" }] }
+        },
+        {
+            "name": "describe_type: an unknown type is refused",
+            "op": { "op": "describe_type", "input": { "type": "slideshow" } },
+            "error": { "code": "invalid" }
+        },
+        {
+            "name": "describe_type: a type kept for old data only is refused",
+            "op": { "op": "describe_type", "input": { "type": "button" } },
+            "error": { "code": "invalid" }
+        },
+        {
             "name": "an unknown operation",
             "op": { "op": "delete_everything", "input": {} },
             "error": { "code": "invalid" }

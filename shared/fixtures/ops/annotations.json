@@ -417,6 +417,25 @@
             "user": { "id": "3", "name": "Linus", "role": "admin" },
             "op": { "op": "remove_annotation", "input": { "ref": "2026-10-02T09:00:01.000Z" } },
             "error": { "code": "notFound" }
+        },
+        {
+            "name": "add_annotation: not after the end of the video",
+            "op": {
+                "op": "add_annotation",
+                "input": {
+                    "start": 600,
+                    "end": 620,
+                    "body": {
+                        "frametrail:type": "text",
+                        "frametrail:name": "Late",
+                        "frametrail:attributes": { "text": "&lt;p&gt;Late&lt;/p&gt;" }
+                    }
+                }
+            },
+            "error": {
+                "code": "invalid",
+                "errors": [{ "path": "/start", "message": "must be before the end of the video (600)" }]
+            }
         }
     ]
 }

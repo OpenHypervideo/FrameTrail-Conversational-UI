@@ -14,7 +14,8 @@
  * else. Handlers that need more code include it when they are called.
  *
  * - Action conversationalUiStatus: answers that the server part is installed,
- *   and which version it is.
+ *   which version it is, and how the chat panel reaches Mistral here
+ *   (capabilities: relay, ownKey).
  *
  *       curl -d a=conversationalUiStatus https://example.org/frametrail/_server/ajaxServer.php
  */
@@ -45,6 +46,27 @@ function ftConversationalUiVersion() {
 
 
 /**
+ * I return how the chat panel may reach Mistral on this server: relay (the
+ * server holds a key and passes requests on; not yet there), ownKey (users
+ * may use their own key directly from the browser: allowOwnKey in
+ * _data/.auth/conversational-ui.php). Neither is a secret.
+ *
+ * @method ftConversationalUiCapabilities
+ * @return Array
+ */
+function ftConversationalUiCapabilities() {
+
+    $secrets = ftExtensionSecrets("conversational-ui");
+
+    return array(
+        "relay"  => false,
+        "ownKey" => isset($secrets["allowOwnKey"]) && $secrets["allowOwnKey"] === true
+    );
+
+}
+
+
+/**
  * Action conversationalUiStatus.
  *
  * @method ftConversationalUiStatus
@@ -57,7 +79,8 @@ function ftConversationalUiStatus($ext) {
         "status"   => "success",
         "code"     => 0,
         "response" => array(
-            "version" => ftConversationalUiVersion()
+            "version"      => ftConversationalUiVersion(),
+            "capabilities" => ftConversationalUiCapabilities()
         )
     );
 
