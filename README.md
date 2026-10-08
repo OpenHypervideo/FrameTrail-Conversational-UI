@@ -1,12 +1,12 @@
 # FrameTrail-Conversational-UI
 
-An extension for [FrameTrail](https://github.com/OpenHypervideo/FrameTrail) that adds a conversational UI: editing a hypervideo in natural language, from a chat panel in the editor or from an agent outside it (MCP endpoint, command-line tool, skills).
+An extension for [FrameTrail](https://github.com/OpenHypervideo/FrameTrail) that adds a conversational UI: editing a hypervideo in natural language, from a chat panel in the editor (with Mistral's models) or from an agent outside it (MCP endpoint, command-line tool, skills).
 
 **Status: early development.** The add-on loads into FrameTrail, adds an empty panel to the editor and installs its server part; the editing capabilities follow.
 
 ## Requirements
 
-- FrameTrail with extensions: the `develop` branch, released after FrameTrail 1.4.0.
+- FrameTrail 1.4.1 or later.
 - For the server part: FrameTrail's PHP backend (server mode), PHP 7.4 or later. No Composer.
 
 The browser part works wherever FrameTrail runs; the server part is used only in server mode.

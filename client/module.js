@@ -15,7 +15,7 @@
     // FrameTrail before the extension API (1.4.0 and earlier) would never call
     // the factory; say why nothing happens.
     if (typeof FrameTrail === 'undefined' || typeof FrameTrail.registerExtension !== 'function') {
-        console.warn('FrameTrail-Conversational-UI ' + ConversationalUI.version + ' needs a FrameTrail version with extensions (after 1.4.0); not loaded.');
+        console.warn('FrameTrail-Conversational-UI ' + ConversationalUI.version + ' needs FrameTrail 1.4.1 or later; not loaded.');
         return;
     }
 

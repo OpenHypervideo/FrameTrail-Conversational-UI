@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 FrameTrail-Conversational-UI is an add-on for [FrameTrail](https://github.com/OpenHypervideo/FrameTrail) that lets people edit a hypervideo in natural language. It has two surfaces that share one set of operations:
 
 - **External agents:** an MCP endpoint, a command-line tool and skills (server part, PHP).
-- **The editor:** a chat panel docked beside the player (browser part, JavaScript), talking to a model through a relay on the server (server mode) or directly from the browser (every other storage mode).
+- **The editor:** a chat panel docked beside the player (browser part, JavaScript), talking to Mistral's API through a relay on the server (server mode) or directly from the browser (every other storage mode).
 
 The operations are defined once, declaratively (`shared/operations.json`), and interpreted twice: in JavaScript for the live editor (which must also work without PHP) and in PHP for external agents. Shared conformance fixtures keep the two in step.
 
@@ -25,7 +25,7 @@ FrameTrail's own docs for these: `docs/EXTENDING.md` ("Writing an Extension", "E
 
 When the add-on needs something FrameTrail lacks, the change goes into FrameTrail as a generic feature that stands on its own: nothing in the FrameTrail repository mentions this add-on, AI, models, providers, agents or MCP — not in code, docs, examples, schemas, labels, tests or configuration keys. Never reach into FrameTrail internals beyond the building blocks above.
 
-Requires FrameTrail with extensions: `develop`, released after 1.4.0.
+Requires FrameTrail 1.4.1 or later, the first release with all of these.
 
 ## Naming
 
@@ -41,7 +41,7 @@ Requires FrameTrail with extensions: `develop`, released after 1.4.0.
 | Private storage | `_data/.extensions/conversational-ui/` (history, jobs) |
 | Secrets | `_data/.auth/conversational-ui.php` |
 | Bundle | `frametrail-conversational-ui.js` / `.css`, `frametrail-conversational-ui-<version>.zip` |
-| `generator` on items it writes | `{ "type": "Software", "name": "FrameTrail-Conversational-UI", "model", "provider" }` |
+| `generator` on items it writes | `{ "type": "Software", "name": "FrameTrail-Conversational-UI", "model": …, "provider": "mistral" }` |
 
 ## Repository Layout
 
@@ -55,7 +55,7 @@ client/                     → build/client/frametrail-conversational-ui.js + .
 ├── ops/                    (A1) operation interpreter, changesets, model and live store
 ├── lint/                   (A2) lint rules
 ├── agent/                  (A7) conversation loop, tool dispatch
-├── models/                 (A7) adapters: openai-compatible, anthropic, relay
+├── models/                 (A7) adapters: mistral (direct), relay
 ├── media/                  (A9) transcription client
 └── module.js               the extension entry (last in the build)
 server/                     → build/server/ = _server/extensions/conversational-ui/
@@ -76,8 +76,9 @@ tests/                      run-js.mjs, run-php.php
 - Edits are applied directly. In the editor one chat turn is one `edit.transaction()`, so one undo step; MCP and CLI edits are undoable through a server-side history.
 - The requesting user is the creator of what the add-on writes; the W3C `generator` records the add-on and the model.
 - Model access follows the storage mode: server mode → the PHP relay; local folder, project file, static and in-memory → directly from the browser.
-- Protocols: OpenAI-compatible Chat Completions and Anthropic Messages.
-- Transcription (the first media capability) is server mode only.
+- Model provider: Mistral only, for chat. Its API is hosted in the EU by default and accepts requests from every origin (also `file://` pages), so direct mode needs no setup. Its free plan is for trying it; on it Mistral trains on inputs and outputs unless the account opts out, and the settings say so. No other providers or local chat models in v1; external agents over MCP bring their own model.
+- The panel speaks Mistral's Chat Completions API, directly or through the relay; under LinkedVideo the gateway offers the same API.
+- Transcription (the first media capability) is server mode only, on a self-hosted Whisper server (OpenAI-compatible `/audio/transcriptions`), never on Mistral.
 - Conversations are not stored in `_data` (v1).
 - Licence MIT.
 
