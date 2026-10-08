@@ -8,7 +8,9 @@
  *
  * - **Access** follows the storage mode: on a server the add-on's status
  *   action tells whether the relay is there (no key needed) or users may use
- *   their own key directly; every other mode talks to Mistral directly.
+ *   their own key directly, or both, when the user chooses (remembered);
+ *   every other mode talks to Mistral directly. The relay needs a signed-in
+ *   user. Administrators see in the settings what the server has.
  * - **Conversations** are kept in memory per hypervideo, so switching back
  *   brings the conversation back; they are not saved.
  * - **Turns** are one undo step each: "Undo this turn" works while the turn's
@@ -28,8 +30,9 @@
     // Chosen by the evaluation (scripts/eval-models.mjs) among the models a free key may use.
     var DEFAULT_MODEL = 'ministral-14b-latest';
 
-    var STORAGE_KEY   = 'frametrail-conversational-ui-key',
-        STORAGE_MODEL = 'frametrail-conversational-ui-model';
+    var STORAGE_KEY        = 'frametrail-conversational-ui-key',
+        STORAGE_MODEL      = 'frametrail-conversational-ui-model',
+        STORAGE_CONNECTION = 'frametrail-conversational-ui-connection';
 
     var DIRECT_MODES = ['local', 'file', 'download', 'static'];
 
@@ -75,6 +78,7 @@
         checking:   'ConversationalUiChecking',
         hypervideo: 'ConversationalUiNeedsHypervideo',
         key:        'ConversationalUiNeedsKey',
+        login:      'ConversationalUiErrorLogin',
         notEnabled: 'ConversationalUiNotEnabled',
         storage:    'ConversationalUiNeedsStorage',
         frameTrail: 'ConversationalUiNeedsFrameTrail'
@@ -193,8 +197,10 @@
                 ? { url: settings.manageUrl, label: (typeof settings.label === 'string') ? settings.label : '' }
                 : null;
 
-        var access       = { mode: 'none', reason: 'checking' },
+        var found        = { mode: 'none', reason: 'checking' },
+            access       = found,
             chosen       = storageGet(STORAGE_MODEL),
+            connection   = storageGet(STORAGE_CONNECTION) === 'direct' ? 'direct' : 'relay',
             values       = { key: '', remember: false, model: chosen || DEFAULT_MODEL, models: [] },
             sessions     = {},
             session      = null,
@@ -248,6 +254,7 @@
         var form = ui.settings({
             labels:     labels,
             access:     function() { return access; },
+            server:     serverInfo,
             managed:    managed,
             values:     function() { return values; },
             onChange:   changeSettings,
@@ -283,35 +290,74 @@
 
             return Promise.resolve(StorageManager.serverPost(new URLSearchParams({ a: 'conversationalUiStatus' }))).then(function(answer) {
                 var response     = (isObject(answer) && answer.status === 'success' && isObject(answer.response)) ? answer.response : {},
-                    capabilities = isObject(response.capabilities) ? response.capabilities : {};
-                if (capabilities.relay === true) {
+                    capabilities = isObject(response.capabilities) ? response.capabilities : null,
+                    server       = capabilities || {};
+                if (server.relay === true) {
                     return {
                         mode:         'relay',
-                        models:       Array.isArray(capabilities.models) ? capabilities.models.filter(function(m) { return typeof m === 'string'; }) : [],
-                        defaultModel: (typeof capabilities.defaultModel === 'string') ? capabilities.defaultModel : null
+                        models:       Array.isArray(server.models) ? server.models.filter(function(m) { return typeof m === 'string'; }) : [],
+                        defaultModel: (typeof server.defaultModel === 'string') ? server.defaultModel : null,
+                        limit:        (typeof server.requestsPerDay === 'number') ? server.requestsPerDay : null,
+                        ownKey:       server.ownKey === true,
+                        server:       capabilities
                     };
                 }
-                if (capabilities.ownKey === true) {
-                    return { mode: 'direct' };
+                if (server.ownKey === true) {
+                    return { mode: 'direct', server: capabilities };
                 }
-                return { mode: 'none', reason: 'notEnabled' };
+                return { mode: 'none', reason: 'notEnabled', server: capabilities };
             }, function() {
-                return { mode: 'none', reason: 'notEnabled' };
+                return { mode: 'none', reason: 'notEnabled', server: null };
             });
 
         }
 
-        function applyAccess(found) {
-            access = found;
+        // What the server and the user's choice make of it: with both the relay
+        // and own keys, the user chooses (the relay unless they chose otherwise).
+        function effective() {
+            var result = Object.assign({}, found);
+            if (found.mode === 'relay' && found.ownKey) {
+                result.choice = true;
+                if (connection === 'direct') { result.mode = 'direct'; }
+            }
+            return result;
+        }
+
+        function applyAccess(result) {
+            found = result;
+            applyConnection();
+        }
+
+        function applyConnection() {
+            access = effective();
             if (access.mode === 'relay') {
                 // The server's default, unless the user chose a model it allows.
                 values.models = access.models.map(function(id) { return { id: id, name: id }; });
                 values.model  = (chosen && access.models.indexOf(chosen) >= 0) ? chosen
                     : access.defaultModel || access.models[0] || values.model;
+            } else if (access.choice) {
+                // Away from the relay: the key's models, once listed.
+                values.models = [];
+                values.model  = chosen || DEFAULT_MODEL;
             }
             form.refresh();
             if (access.mode === 'direct' && values.key) { form.loadModels(); }
             update();
+        }
+
+        // What administrators see of the server's set-up in the settings, or null.
+        function serverInfo() {
+            var user = (FrameTrail.edit && typeof FrameTrail.edit.getUser === 'function') ? FrameTrail.edit.getUser() : null;
+            if (FrameTrail.getState('storageMode') !== 'server' || !found.server || !user || user.guest || user.role !== 'admin') {
+                return null;
+            }
+            return found.server;
+        }
+
+        // Whether someone is signed in to the server (the relay needs it).
+        function signedIn() {
+            var user = (FrameTrail.edit && typeof FrameTrail.edit.getUser === 'function') ? FrameTrail.edit.getUser() : null;
+            return !!user && !user.guest;
         }
 
         function currentAdapter() {
@@ -348,6 +394,12 @@
                 values.model = chosen = changes.model;
                 storageSet(STORAGE_MODEL, values.model);
             }
+            if (changes.connection !== undefined) {
+                connection = (changes.connection === 'direct') ? 'direct' : 'relay';
+                storageSet(STORAGE_CONNECTION, connection === 'direct' ? 'direct' : null);
+                applyConnection();
+                return;
+            }
             update();
         }
 
@@ -379,6 +431,7 @@
             if (access.reason === 'checking') { return 'checking'; }
             if (!FrameTrail.edit || typeof FrameTrail.edit.getInfo !== 'function') { return 'frameTrail'; }
             if (access.mode === 'none') { return access.reason || 'notEnabled'; }
+            if (access.mode === 'relay' && !signedIn()) { return 'login'; }
             if (hypervideoId === null || FrameTrail.getState('viewMode') !== 'video') { return 'hypervideo'; }
             if (!currentAdapter()) { return 'key'; }
             return null;
@@ -394,7 +447,7 @@
             notice.classList.toggle('active', !!reason && !busy);
             if (reason) {
                 notice.append(document.createTextNode(labels[UNAVAILABLE_LABELS[reason]] || labels['ConversationalUiNotEnabled']));
-                if (reason === 'key') {
+                if (reason === 'key' || (reason === 'login' && access.choice)) {
                     var open = button('conversationalUiOpenSettings', labels['ConversationalUiSettings']);
                     open.addEventListener('click', function() { toggleSettings(true); });
                     notice.append(document.createTextNode(' '), open);
@@ -695,7 +748,7 @@
 
             if (text === '') { return; }
             if (reason) {
-                if (reason === 'key') { toggleSettings(true); }
+                if (reason === 'key' || (reason === 'login' && access.choice)) { toggleSettings(true); }
                 update();
                 return;
             }

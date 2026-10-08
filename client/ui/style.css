@@ -91,6 +91,16 @@
     opacity: .8;
 }
 
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiServerInfo {
+    padding-top: 8px;
+    border-top: 1px solid var(--secondary-bg-color);
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiServerTitle {
+    margin: 0;
+    font-weight: 600;
+}
+
 .sidePanelItem[data-extension="conversational-ui"] .conversationalUiHint a,
 .sidePanelItem[data-extension="conversational-ui"] .conversationalUiAssistant a {
     color: inherit;

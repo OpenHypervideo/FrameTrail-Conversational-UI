@@ -8,16 +8,16 @@ FrameTrail-Conversational-UI is an add-on for [FrameTrail](https://github.com/Op
 
 What the panel's model can do is defined once, declaratively (`shared/operations.json`), and carried out in the browser by the operations in `client/ops/`, against the open editor through FrameTrail's edit API. Lint rules (`shared/lint.json`, `client/lint/`) check a hypervideo after changes. Conformance fixtures (`shared/fixtures/`) say what both must do. The conversation (`client/agent/`) sends the user's messages, the system prompt (`shared/prompts/`) and the operations as tools to Mistral (`client/models/`) and carries out the tool calls; the panel (`client/ui/`) shows it.
 
-The server part (PHP) is small: a status action (which also tells the panel how it may reach Mistral) now, the model relay and transcription later. There is no server-side surface for agents outside the editor (an MCP endpoint, a command-line tool): it was planned and left out of v1, so the operations exist in JavaScript only.
+The server part (PHP) is small: a status action (which also tells the panel how it may reach Mistral) and the model relay; transcription later. There is no server-side surface for agents outside the editor (an MCP endpoint, a command-line tool): it was planned and left out of v1, so the operations exist in JavaScript only.
 
-Work proceeds in phases; A0 (scaffold), A1 (operations, changesets, the interpreter), A2 (lint) and A7 (the chat panel) are done, A3–A6 (the server side for external agents) were dropped, the relay (A8) and transcription (A9) follow. The phase plan is kept outside this repository.
+Work proceeds in phases; A0 (scaffold), A1 (operations, changesets, the interpreter), A2 (lint), A7 (the chat panel) and A8 (the relay) are done, A3–A6 (the server side for external agents) were dropped, transcription (A9) follows. The phase plan is kept outside this repository.
 
 ## Relationship to FrameTrail
 
 The add-on lives entirely outside FrameTrail and uses only its generic, documented building blocks:
 
 - **Browser:** `FrameTrail.registerExtension()` and its slots (`sidePanel`, `titlebarAction`, `editPanel`) and hooks, `edit` (the edit API: stored-format items, JSON Merge Patch updates, `transaction()` as one undo step, the busy editor and its Stop, and the reads around the data: `getInfo()`, `getUser()`, `permission(kind)`, `listHypervideos()`), `Localization.addLabels()`, `StorageManager.serverPost()` / `extensionURL()`, the states `storageMode`, `viewMode`, `editMode`, `editBusy`, `UndoManager`'s `getUndoDescription()`, `getRedoDescription()`, `undo()`, `redo()` and its `undoStateChanged` event (the panel's "Undo this turn"), and the pure globals in FrameTrail's bundle: `FrameTrailSerializer`, `FrameTrailKeyframes`, `FrameTrailSchema` + `FrameTrailSchemas`.
-- **Server:** the server extension manifest, `requireLogin()` / `userCheckLogin()`, `ftExtensionStorage()`, `ftExtensionSecrets()`.
+- **Server:** the server extension manifest, `requireLogin()` / `userCheckLogin()` (the user record, with its `external` block under external authentication), `ftIsBearerRequest()`, `ftExternalAuthEnabled()`, `ftExtensionStorage()`, `ftExtensionSecrets()`.
 - **Data:** the JSON Schemas in FrameTrail's `schemas/`, `docs/DATA-MODEL.md`, and the data sets in `tests/fixtures/data/` (the tests read and lint them).
 
 FrameTrail's own docs for these: `docs/EXTENDING.md` ("Writing an Extension", "Editing the Hypervideo", "Server Extensions"), `docs/DATA-MODEL.md`, `docs/DEPLOYMENT.md`.
@@ -37,7 +37,7 @@ Requires FrameTrail 1.4.1 or later, the first release with all of these but the 
 | PHP functions | `ftConversationalUi…` |
 | Routes | `_server/extension.php?e=conversational-ui&r=<route>` (`relay`) |
 | CSS | root `.conversationalUi`, scoped under `.sidePanelItem[data-extension="conversational-ui"]` |
-| Private storage | `_data/.extensions/conversational-ui/` (transcription jobs) |
+| Private storage | `_data/.extensions/conversational-ui/` (`usage.json`: the relay's count of the day's requests; transcription jobs) |
 | Secrets | `_data/.auth/conversational-ui.php` |
 | Bundle | `frametrail-conversational-ui.js` / `.css`, `frametrail-conversational-ui-<version>.zip` |
 | `generator` on items it writes | `{ "type": "Software", "name": "FrameTrail-Conversational-UI", "model": …, "provider": "mistral" }` |
@@ -61,8 +61,8 @@ client/                     → build/client/frametrail-conversational-ui.js + .
 ├── media/                  (A9) transcription client
 └── module.js               the extension entry (last in the build)
 server/                     → build/server/ = _server/extensions/conversational-ui/
-├── extension.php           the manifest: actions, routes, requires
-├── relay.php               (A8) action conversationalUiChat, route relay
+├── extension.php           the manifest: actions, routes, requires; the configuration and the status
+├── relay.php               the model relay: action conversationalUiChat, route relay
 └── transcribe.php          (A9)
 shared/
 ├── operations.json         the operations manifest (embedded in the bundle by the build)
@@ -73,14 +73,15 @@ shared/
 ├── prompts/                the system prompt: system.md, conversation.md, types.md (embedded too)
 └── eval/                   tasks.json: the tool-calling evaluation's requests and checks
 scripts/                    build.sh (concatenation build), eval-models.mjs (the evaluation)
-tests/                      run-js.mjs (client, operations, lint), run-php.php (server part)
+tests/                      run-js.mjs (client, operations, lint), run-php.php (server part),
+                            relay/ (stand-ins for Mistral's API and FrameTrail's routers, for run-php.php)
 ```
 
 ## Decisions
 
 - Edits are applied directly. One chat turn is one `edit.transaction()`, so one undo step; Stop (the panel's or FrameTrail's) takes the turn's changes back.
 - The requesting user is the creator of what the add-on writes; the W3C `generator` records the add-on and the model.
-- Model access follows the storage mode: server mode → the PHP relay; local folder, project file, static and in-memory → directly from the browser.
+- Model access follows the storage mode: server mode → the PHP relay (or the user's own key, where the server allows it and the user chooses it); local folder, project file, static and in-memory → directly from the browser.
 - Model provider: Mistral only, for chat. Its API is hosted in the EU by default and accepts requests from every origin (also `file://` pages), so direct mode needs no setup. Its free plan is for trying it; on it Mistral trains on inputs and outputs unless the account opts out, and the settings say so. No other providers or local chat models in v1.
 - No surface for agents outside the editor in v1 (no MCP endpoint, command-line tool or skills): the operations run in the browser only. A later surface would reuse `client/ops/` rather than a second implementation.
 - The panel speaks Mistral's Chat Completions API, directly or through the relay; under LinkedVideo the gateway offers the same API.
@@ -122,8 +123,8 @@ Adding an operation: its entry in `operations.json` (keep the subset; `node test
 
 - `models.chat(adapter, body, { signal, onText })` streams (server-sent events, text and tool calls collected across any chunking: by index, a new id under a taken index is a new call; content lists' text kept, thinking left out) and falls back to one request without streaming when nothing arrives within 30 s, after which the adapter goes without (`adapter.streaming = false`). Errors are chat errors with a `code`: `key` (401/403), `model` (400/404/422 naming the model), `rateLimit` (429, `retryAfter`), `request`, `service` (5xx), `network`, `stopped`, or the relay's `login`, `quota`, `notConfigured`, `notAllowed`.
 - `models.mistral({ key })`: `https://api.mistral.ai/v1` from the browser (Mistral's CORS allows `Authorization` and `Content-Type` from every origin); `listModels()` (chat models with tools, aliases folded in), `test(model)`.
-- `models.relay({ url, post, models })`: streaming through the route `relay`, without streaming through the action `conversationalUiChat` (A8 implements both; the contract is in `relay.js`).
-- **Which one:** server mode asks `conversationalUiStatus` → `capabilities`: `relay` → the relay (its `models`, `defaultModel`); else `ownKey` (`allowOwnKey` true in `_data/.auth/conversational-ui.php`) → direct; else none. Local folder, project file, static and in-memory modes go direct.
+- `models.relay({ url, post, models })`: streaming through the route `relay`, without streaming through the action `conversationalUiChat` (the contract is in `relay.js`; the server side under "Server"). The action's failures carry Mistral's error body as `upstream`, read like a direct answer; the relay's own refusals carry `error.code`.
+- **Which one:** server mode asks `conversationalUiStatus` → `capabilities`: `relay` → the relay (its `models`, `defaultModel`, `requestsPerDay`), and with `ownKey` as well the user chooses in the settings (`frametrail-conversational-ui-connection` in localStorage, the relay unless it says `direct`); `ownKey` alone (`allowOwnKey` true in `_data/.auth/conversational-ui.php`) → direct; else none. The relay needs a signed-in user who is not a guest (`edit.getUser()`), otherwise the panel says to sign in. Local folder, project file, static and in-memory modes go direct.
 - **Models:** on Mistral's free plan some models allow no requests at all (a per-minute limit of 0: every request is a 429, which a browser cannot tell from a passing limit). The default (`ui.DEFAULT_MODEL`) is chosen by the evaluation among the models a free key may use.
 
 ## The Panel
@@ -132,7 +133,7 @@ Adding an operation: its entry in `operations.json` (keep the subset; `node test
 
 - Conversations are kept in memory per hypervideo (switching back brings one back), never saved. A new conversation from the bar.
 - **Undo this turn:** each turn's undo description is `Assistant: <request>`, made unique among the panel's turns; the button undoes through `UndoManager` while that description is the latest step, becomes "Redo this turn" when it is the next redo, and otherwise says why not. The model gets a note.
-- **Settings:** the key (in memory; in `localStorage` only with "Remember the key on this device", with its warning), the model (from the key's models, or the relay's), a connection test, a link to Mistral's console and the note on training under the free plan. A platform that manages the instance's settings names itself in the extension's `settings` (`label`, `manageUrl`); the model is then not the user's to choose.
+- **Settings:** the connection (the relay or one's own key, where the server offers both), the relay's daily limit, the key (in memory; in `localStorage` only with "Remember the key on this device", with its warning), the model (from the key's models, or the relay's), a connection test, a link to Mistral's console and the note on training under the free plan. Administrators (server mode, `edit.getUser().role === 'admin'`) also see what the server has set up, from the status action's `capabilities`: the relay with its models and limit, or how to switch it on, or what keeps it from working (`problem`: `curl`, `baseUrl`), and whether own keys are allowed. The relay is configured only in its file; there is no settings form that writes it. A platform that manages the instance's settings names itself in the extension's `settings` (`label`, `manageUrl`); the model is then not the user's to choose.
 - Keyboard: Enter sends, Shift+Enter a new line, Esc stops; buttons are buttons, the log is `role="log"`.
 
 ## Prompts and the Evaluation
@@ -186,6 +187,19 @@ Checks of a hypervideo that its schemas cannot express, run after changes (the c
 - State in `ftExtensionStorage("conversational-ui")`, never served or exported but copied with `_data/`, so never secrets. Secrets in `_data/.auth/conversational-ui.php` (`ftExtensionSecrets()`). The config entry's `settings` reach both parts and are public on public instances.
 - JSON: decode so that `{}` stays an object (`json_decode($json, true)` turns it into `[]`); encode with `JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE`.
 
+### The Relay
+
+`server/relay.php`, loaded by the manifest's handlers when they are called. The configuration is `ftConversationalUiConfig()` in `extension.php` (every key of `_data/.auth/conversational-ui.php` checked, defaults filled in; the README lists them), which the status action reads too: `capabilities` = `{ relay, ownKey }`, with `models`, `defaultModel`, `requestsPerDay` when the relay is on, `problem` (`curl`, `baseUrl`) when a key is there but the relay cannot work.
+
+- **Pass-through:** the request's bytes go to `{baseUrl}/chat/completions` unchanged and the answer comes back as it is; the relay decodes the request only to check it. Nothing is translated, no tool runs on the server.
+- **Admission** (`ftConversationalUiRelayAdmit()`), in this order: configured (key, valid `baseUrl`, curl: `notConfigured` 503), signed in (`login` 401), active and not a personal API token (`notAllowed` 403), the request (≤ 2 MB: 413; a JSON object, `stream` as the endpoint has it, an allowed model: 400, the model named), the day's count (`quota` 429 with `Retry-After` until midnight). Refusals are `{ error: { code?, message } }`; only the relay's own carry a code. Then `session_write_close()`.
+- **The count** (`ftConversationalUiRelayCount()`): model requests (not turns) per user id and calendar day in server time, in `usage.json` under `flock`, counted before the request goes; refused requests are not counted. Without the private folder a configured limit refuses (`notConfigured`) rather than relaying uncounted.
+- **Upstream** (`ftConversationalUiRelayExchange()`): curl, no redirects, http(s) only, no `100-continue`, a total timeout, and while streaming a minute without a byte ends it. Headers: the key, the types, and only for a gateway (any `baseUrl` but Mistral's) `X-FrameTrail-User` (the platform's subject under external authentication, else the user id) and `X-FrameTrail-Instance`. Control characters never reach a header.
+- **Upstream failures** (`ftConversationalUiRelayUpstreamFailure()`): status and body passed on with `Retry-After`, the key taken out of the body; no answer → 502 (504 when it timed out); 401/403 → `notConfigured` 502 (the server's key), unless the body is already a refusal in the relay's words (a gateway's); a 429 with an `x-ratelimit-limit-*` of 0 → a model error (400).
+- **The route** streams: POST and `Content-Type: application/json` only (405, 415), output buffers closed, compression off, `X-Accel-Buffering: no`, the status and headers sent with the first piece of a successful answer, a flush after every piece; when the browser has gone, the request to Mistral stops at the next piece. An answer that breaks off after it started ends with an SSE `error` event.
+- **The action** answers `{ status: 'success', response: <completion> }` (decoded as objects, so `{}` stays `{}`), or `{ status: 'fail', code: <HTTP status>, string, upstream | error, retryAfter? }`.
+- The key never reaches an answer: messages are generic, and the tests look for it in every answer they get.
+
 ## Version
 
 Sources carry `__CONVERSATIONAL_UI_VERSION__` (`client/namespace.js`, `server/extension.php`). The build writes the release label in (`dev` by default); PHP that did not go through the build reports `dev`.
@@ -210,7 +224,7 @@ php tests/run-php.php --build
 
 - `run-js.mjs` needs a FrameTrail working copy: `FRAMETRAIL_DIR`, or `--frametrail=<dir>`, or the sibling `../frametrail`. CI checks out `OpenHypervideo/FrameTrail` at `v1.4.1` (`FRAMETRAIL_REF` in both workflows), the oldest release whose pure scripts and schemas are as the add-on uses them.
 - `run-js.mjs` runs the client files in a `vm` context, in build order (with the shared data and prompts embedded as the build does), against a stand-in for FrameTrail (a small DOM, the state, StorageManager, UndoManager, edit over a model store): the build lists, the labels, the registration and the panel (access by storage mode, a turn with its undo). For the operations and lint it first runs FrameTrail's pure scripts in the same context (`FrameTrailKeyframes`, `FrameTrailSerializer`, `FrameTrailSchema`, `FrameTrailSchemas`), as FrameTrail loads them; the live store's tests use a stand-in for the edit API. Then: the manifests (meta-schema, schemas in the subset, an implementation per operation and per lint rule, preconditions that fit the inputs), every conformance fixture against the model store, every read and lint over FrameTrail's own `tests/fixtures/data/`, the helpers, the live store against a stand-in edit API, `describe_type` against FrameTrail's schemas, the tools, the chat client (streams cut anywhere, errors, the fallback), and the conversation against a scripted model (questions, changes, invalid input, rate limits, Stop, lint).
-- `run-php.php` checks the syntax of every PHP file, the guard, the manifest against the rules of FrameTrail's extension loader (names, callable handlers, requirements, prefixed functions) and the actions' answers. It needs no FrameTrail working copy.
+- `run-php.php` checks the syntax of every PHP file, the guard, the manifest against the rules of FrameTrail's extension loader (names, callable handlers, requirements, prefixed functions), the status action, and the relay: its parts one by one (configuration, headers, the count, admission, upstream failures) with stand-ins for FrameTrail's functions, then over HTTP: it starts PHP's built-in server twice, with `tests/relay/upstream.php` (a stand-in for Mistral's API that answers by model name) and `tests/relay/harness.php` (a stand-in for FrameTrail's routers, the scene set by request headers, the relay's host with `output_buffering` on as php.ini-development has it), and checks streaming piece by piece, what reaches Mistral, every failure and refusal, Stop, and that the key appears in no answer. It needs PHP's curl extension and no FrameTrail working copy.
 - The conformance fixtures in `shared/fixtures/` (rules in its README) run in `run-js.mjs`, which fails on a folder there it does not know.
 - To write a fixture case, give the input, then let `plans/a1-validation/fill-fixtures.mjs` (operations) or `plans/a2-validation/fill-lint.mjs` (lint; both git-ignored) fill in what the JavaScript does, and check every filled value by hand before keeping it: the expectations must say what is right.
 

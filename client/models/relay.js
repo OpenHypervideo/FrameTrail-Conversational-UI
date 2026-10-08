@@ -6,15 +6,20 @@
  *
  *     var adapter = models.relay({ url: …, post: …, models: [...] });
  *
- * - Streaming: POST the request as JSON to the route `relay`
+ * - Streaming: POST the request as JSON ("stream": true) to the route `relay`
  *   (_server/extension.php?e=conversational-ui&r=relay); the answer is
- *   Mistral's stream of server-sent events, or an error with Mistral's status
- *   and body.
- * - Without streaming: the action conversationalUiChat with the request as
- *   JSON text in `request`; it answers { status: 'success', response: <the
- *   completion> } or { status: 'fail', code: <HTTP status>, string, error }.
- * - The relay's own refusals come as { error: { code, message } }, code one
- *   of login, quota, notConfigured, notAllowed (models/chat.js).
+ *   Mistral's stream of server-sent events, or an error with the status and
+ *   body of Mistral's answer (Retry-After passed on when it gives one).
+ * - Without streaming: the action conversationalUiChat with the request
+ *   ("stream": false) as JSON text in `request`; it answers
+ *       { status: 'success', response: <the completion> }
+ *       { status: 'fail', code: <HTTP status>, string, upstream: <Mistral's error body>, retryAfter? }
+ * - The relay's own refusals come as { error: { code, message } } (in the
+ *   action's answer as its `error`), code one of login (401), notAllowed
+ *   (403: an inactive account, a personal API token), quota (429: the day's
+ *   requests used up), notConfigured (503, or 502 when Mistral refused the
+ *   server's key) (models/chat.js). A model the server does not allow, or
+ *   that its key may never use, is a 400 whose message names the model.
  */
 
 (function(ConversationalUI) {
@@ -32,6 +37,7 @@
             status = ok ? 200 : (isObject(answer) && typeof answer.code === 'number' && answer.code >= 400) ? answer.code : 502,
             body   = ok ? answer.response
                 : (isObject(answer) && isObject(answer.error)) ? { error: answer.error }
+                : (isObject(answer) && answer.upstream !== undefined) ? answer.upstream
                 : { message: (isObject(answer) && typeof answer.string === 'string') ? answer.string : 'The relay did not answer' };
 
         return {

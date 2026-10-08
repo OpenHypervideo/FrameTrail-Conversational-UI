@@ -1,15 +1,18 @@
 /*
  * FrameTrail-Conversational-UI — the panel's settings (ConversationalUI.ui.settings):
- * how the assistant reaches Mistral, the user's key (direct mode), the model,
- * and a connection test. The panel (ui/panel.js) owns the values; this only
- * shows them and reports changes.
+ * how the assistant reaches Mistral (and, where the server offers both, the
+ * user's choice between the relay and their own key), the user's key (direct
+ * mode), the model, a connection test, and for administrators what the
+ * server has set up. The panel (ui/panel.js) owns the values; this only shows
+ * them and reports changes.
  *
  *     var form = ui.settings({
  *         labels:     Localization.labels,
- *         access:     { mode: 'direct' | 'relay' | 'none', reason },
+ *         access:     function() { return { mode: 'direct' | 'relay' | 'none', reason, choice, limit }; },
+ *         server:     function() { return the status action's capabilities, for administrators, or null; },
  *         managed:    { url, label } or null,       // a platform manages the instance's settings
  *         values:     function() { return { key, remember, model, models }; },
- *         onChange:   function(changes) { … },      // { key } | { remember } | { model }
+ *         onChange:   function(changes) { … },      // { key } | { remember } | { model } | { connection }
  *         loadModels: function() { return promise of [{ id, name }]; },
  *         test:       function() { return promise; }
  *     });
@@ -63,7 +66,24 @@
 
         root.id = id;
 
-        var connection = element('p', 'conversationalUiConnection');
+        var connection = element('p', 'conversationalUiConnection'),
+            limit      = element('p', 'conversationalUiHint conversationalUiLimit');
+
+        // Through the server, or with one's own key, where the server offers both.
+        var choiceGroup  = element('div', 'conversationalUiField'),
+            choiceLabel  = element('label', null, labels['ConversationalUiSettingsConnection']),
+            choiceWrap   = element('div', 'custom-select'),
+            choiceSelect = element('select');
+
+        choiceSelect.id = id + 'Connection';
+        choiceLabel.htmlFor = choiceSelect.id;
+        [['relay', 'ConversationalUiSettingsConnectionRelay'], ['direct', 'ConversationalUiSettingsConnectionOwnKey']].forEach(function(pair) {
+            var option = element('option', null, labels[pair[1]]);
+            option.value = pair[0];
+            choiceSelect.append(option);
+        });
+        choiceWrap.append(choiceSelect);
+        choiceGroup.append(choiceLabel, choiceWrap);
 
         // The key (direct mode).
         var keyGroup  = element('div', 'conversationalUiField'),
@@ -116,7 +136,10 @@
 
         var managedNote = element('p', 'conversationalUiHint');
 
-        root.append(connection, keyGroup, modelGroup, testGroup, managedNote);
+        // What the server has set up, for administrators.
+        var serverGroup = element('div', 'conversationalUiField conversationalUiServerInfo');
+
+        root.append(connection, limit, choiceGroup, keyGroup, modelGroup, testGroup, managedNote, serverGroup);
 
         function values() { return options.values(); }
 
@@ -132,6 +155,49 @@
                 if (model.id === current) { option.selected = true; }
                 modelSelect.append(option);
             });
+        }
+
+        function format(template, values) {
+            return String(template).replace(/\{([a-zA-Z]+)\}/g, function(match, name) {
+                return (values[name] !== undefined && values[name] !== null) ? String(values[name]) : '';
+            });
+        }
+
+        // The server's set-up in words: the relay, its models and limit or how to switch it on, own keys.
+        function showServer() {
+
+            var server = options.server ? options.server() : null;
+
+            serverGroup.innerHTML = '';
+            serverGroup.style.display = server ? '' : 'none';
+            if (!server) { return; }
+
+            var lines = [labels['ConversationalUiServerTitle']];
+
+            if (server.relay === true) {
+                lines.push(format(labels['ConversationalUiServerRelayOn'], {
+                    models: (server.models || []).join(', '),
+                    model:  server.defaultModel || '',
+                    limit:  (typeof server.requestsPerDay === 'number')
+                        ? format(labels['ConversationalUiServerLimit'], { count: server.requestsPerDay })
+                        : labels['ConversationalUiServerNoLimit']
+                }));
+            } else if (server.problem === 'curl') {
+                lines.push(labels['ConversationalUiServerCurl']);
+            } else if (server.problem === 'baseUrl') {
+                lines.push(labels['ConversationalUiServerBaseUrl']);
+            } else {
+                lines.push(labels['ConversationalUiServerRelayOff']);
+            }
+
+            lines.push(labels[server.ownKey === true ? 'ConversationalUiServerOwnKeyOn' : 'ConversationalUiServerOwnKeyOff']);
+
+            lines.forEach(function(line, index) {
+                var p = element('p', 'conversationalUiHint', line);
+                if (index === 0) { p.className = 'conversationalUiServerTitle'; }
+                serverGroup.append(p);
+            });
+
         }
 
         function showResult(kind, text) {
@@ -150,6 +216,13 @@
                 relay:  'ConversationalUiSettingsRelay',
                 none:   'ConversationalUiSettingsNone'
             }[access.mode] || 'ConversationalUiSettingsNone'];
+
+            var daily = access.mode === 'relay' && typeof access.limit === 'number';
+            limit.textContent = daily ? format(labels['ConversationalUiSettingsRelayLimit'], { count: access.limit }) : '';
+            limit.style.display = daily ? '' : 'none';
+
+            choiceGroup.style.display = access.choice ? '' : 'none';
+            choiceSelect.value = direct ? 'direct' : 'relay';
 
             keyGroup.style.display = direct ? '' : 'none';
             if (document.activeElement !== keyInput) { keyInput.value = state.key || ''; }
@@ -173,6 +246,8 @@
                 }));
             }
 
+            showServer();
+
         }
 
         keyInput.addEventListener('change', function() {
@@ -184,6 +259,11 @@
         rememberInput.addEventListener('change', function() {
             options.onChange({ remember: rememberInput.checked });
             rememberWarn.classList.toggle('active', rememberInput.checked);
+        });
+
+        choiceSelect.addEventListener('change', function() {
+            testResult.className = 'message';
+            options.onChange({ connection: choiceSelect.value });
         });
 
         modelSelect.addEventListener('change', function() {
@@ -217,7 +297,7 @@
             element:    root,
             refresh:    refresh,
             loadModels: loadModels,
-            focus:      function() { (keyGroup.style.display !== 'none' ? keyInput : modelSelect).focus(); }
+            focus:      function() { (choiceGroup.style.display !== 'none' ? choiceSelect : keyGroup.style.display !== 'none' ? keyInput : modelSelect).focus(); }
         };
 
     }

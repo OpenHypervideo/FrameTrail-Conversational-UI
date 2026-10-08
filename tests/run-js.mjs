@@ -1354,6 +1354,35 @@ describe('models.chat', () => {
         assert.equal((await failure(answer(401, { error: { code: 'login', message: 'Sign in' } }))).code, 'login');
     });
 
+    test('through the relay\'s action: Mistral\'s errors read as in direct mode, the relay\'s refusals by their code', async () => {
+        const { ns } = environment();
+        const viaAction = async (reply) => {
+            const posted  = [],
+                  adapter = ns.models.relay({ url: 'relay', post: (body) => { posted.push(Object.fromEntries(body.entries())); return Promise.resolve(reply); } });
+            adapter.streaming = false;
+            try {
+                const result = await ns.models.chat(adapter, { model: 'm', messages: [] });
+                return { result, posted };
+            } catch (e) {
+                return { code: e.code, message: e.message, retryAfter: e.retryAfter, status: e.status, posted };
+            }
+        };
+        const ok = await viaAction({ status: 'success', code: 0, response: { choices: [{ index: 0, message: { role: 'assistant', content: 'Hi' }, finish_reason: 'stop' }] } });
+        assert.equal(ok.result.message.content, 'Hi');
+        assert.deepEqual(ok.posted, [{ a: 'conversationalUiChat', request: JSON.stringify({ model: 'm', messages: [], stream: false }) }]);
+        const model = await viaAction({ status: 'fail', code: 400, string: 'The model service answered with status 400.', upstream: { object: 'error', message: 'Invalid model: m', type: 'invalid_model' } });
+        assert.deepEqual([model.code, model.message, model.status], ['model', 'Invalid model: m', 400]);
+        const rate = await viaAction({ status: 'fail', code: 429, string: '…', upstream: { message: 'Requests rate limit exceeded' }, retryAfter: 7 });
+        assert.deepEqual([rate.code, rate.retryAfter], ['rateLimit', 7]);
+        const quota = await viaAction({ status: 'fail', code: 429, string: '…', error: { code: 'quota', message: 'You have used today\'s 40 requests.' }, retryAfter: 3600 });
+        assert.deepEqual([quota.code, quota.message], ['quota', 'You have used today\'s 40 requests.']);
+        assert.equal((await viaAction({ status: 'fail', code: 502, string: '…', error: { code: 'notConfigured', message: 'The model service refused the server\'s key.' } })).code, 'notConfigured');
+        assert.equal((await viaAction({ status: 'fail', code: 401, string: '…', error: { code: 'login', message: 'Sign in to use the assistant.' } })).code, 'login');
+        assert.equal((await viaAction({ status: 'fail', code: 400, string: '…', error: { message: 'The model mistral-large-latest is not available on this server.' } })).code, 'model');
+        // FrameTrail's own failures: an extension that failed, or that lacks a PHP extension.
+        assert.equal((await viaAction({ status: 'fail', code: 503, string: 'The extension needs curl' })).code, 'service');
+    });
+
     test('asks again without streaming when a stream sends nothing in time, and the adapter remembers', async () => {
         const { ns } = environment(),
               bodies  = [],
@@ -1673,11 +1702,13 @@ describe('the panel', () => {
               loaded  = load({ frameTrail: true, fetch: (url, init) => { fetches.push({ url, body: init && init.body ? JSON.parse(init.body) : null }); return options.fetch(url, init); } }),
               { context, registered } = loaded,
               ns    = context.FrameTrailConversationalUI,
-              store = ns.ops.modelStore(readJSON(path.join(DATA, 'lecture.json')), { user: { id: '1', name: 'Ada', role: 'user' } }),
-              ft    = instance('en', { state: { storageMode: options.storageMode || 'download' }, status: options.status, edit: store }),
+              store = ns.ops.modelStore(readJSON(path.join(DATA, 'lecture.json')), { user: { id: '1', name: 'Ada', role: 'user' } });
+        if ('user' in options) { store.getUser = () => options.user; }
+        const ft    = instance('en', { state: { storageMode: options.storageMode || 'download' }, status: options.status, edit: store }),
               ext   = registered[NAME](ft),
               container = context.document.createElement('div');
         if (options.key) { loaded.storage['frametrail-conversational-ui-key'] = options.key; }
+        Object.assign(loaded.storage, options.stored || {});
         ext.init({});
         ext.slots.sidePanel.create(container, {});
         ext.onHypervideoChange('1');
@@ -1712,6 +1743,71 @@ describe('the panel', () => {
         assert.equal(none.root.querySelector('textarea').disabled, true);
         const old = await opened({ storageMode: 'server', status: { status: 'success', code: 0, response: { version: 'dev' } } });
         assert.equal(old.notice(), old.labels.ConversationalUiNotEnabled);
+    });
+
+    const capabilities = (more) => ({ status: 'success', code: 0, response: { version: 'dev', capabilities: Object.assign({ relay: true, ownKey: false, models: ['ministral-14b-latest', 'ministral-8b-latest'], defaultModel: 'ministral-14b-latest', requestsPerDay: 40 }, more) } });
+    const select = (panel, suffix) => panel.root.querySelectorAll('select').find((el) => el.id.endsWith(suffix));
+    const shown  = (el) => el.style.display !== 'none';
+
+    test('relay and own keys on one server: the user chooses, the relay first, and the choice is remembered', async () => {
+        const panel  = await opened({ storageMode: 'server', status: capabilities({ ownKey: true }) }),
+              choice = select(panel, 'Connection');
+        assert.ok(shown(choice.parentNode.parentNode), 'the choice is shown');
+        assert.equal(choice.value, 'relay');
+        assert.equal(panel.settings(), panel.labels.ConversationalUiSettingsRelay);
+        assert.equal(panel.root.querySelector('.conversationalUiLimit').textContent, panel.labels.ConversationalUiSettingsRelayLimit.replace('{count}', '40'));
+        assert.equal(panel.notice(), '');
+        choice.value = 'direct';
+        choice.dispatch('change');
+        assert.equal(panel.settings(), panel.labels.ConversationalUiSettingsDirect);
+        assert.ok(!shown(panel.root.querySelector('.conversationalUiLimit')), 'no limit with one\'s own key');
+        assert.match(panel.notice(), new RegExp('^' + panel.labels.ConversationalUiNeedsKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+        assert.equal(panel.storage['frametrail-conversational-ui-connection'], 'direct');
+        assert.equal(panel.root.querySelector('.conversationalUiStatus').textContent, panel.ns.ui.DEFAULT_MODEL);
+        choice.value = 'relay';
+        choice.dispatch('change');
+        assert.equal(panel.notice(), '');
+        assert.equal(panel.storage['frametrail-conversational-ui-connection'], undefined);
+        const again = await opened({ storageMode: 'server', status: capabilities({ ownKey: true }), stored: { 'frametrail-conversational-ui-connection': 'direct' } });
+        assert.equal(again.settings(), again.labels.ConversationalUiSettingsDirect);
+        const relayOnly = await opened({ storageMode: 'server', status: capabilities({}), stored: { 'frametrail-conversational-ui-connection': 'direct' } });
+        assert.equal(relayOnly.settings(), relayOnly.labels.ConversationalUiSettingsRelay, 'no choice without own keys');
+        assert.ok(!shown(select(relayOnly, 'Connection').parentNode.parentNode));
+    });
+
+    test('the relay needs someone signed in: a guest is told so, and offered their own key where the server allows it', async () => {
+        const guest = await opened({ storageMode: 'server', status: capabilities({}), user: { id: 'guest_ada-1', name: 'Ada', role: 'admin', guest: true } });
+        assert.equal(guest.notice(), guest.labels.ConversationalUiErrorLogin);
+        assert.equal(guest.root.querySelector('textarea').disabled, true);
+        const nobody = await opened({ storageMode: 'server', status: capabilities({ ownKey: true }), user: null });
+        assert.equal(nobody.notice(), nobody.labels.ConversationalUiErrorLogin + ' ' + nobody.labels.ConversationalUiSettings);
+        nobody.root.querySelector('.conversationalUiOpenSettings').click();
+        const choice = select(nobody, 'Connection');
+        choice.value = 'direct';
+        choice.dispatch('change');
+        assert.match(nobody.notice(), /^To start, enter your Mistral API key/);
+    });
+
+    test('administrators see what the server has set up; others do not', async () => {
+        const admin = { id: '1', name: 'Ada', role: 'admin', guest: false };
+        const info  = (panel) => { const el = panel.root.querySelector('.conversationalUiServerInfo'); return shown(el) ? el.children.map((p) => p.textContent) : null; };
+        const on = await opened({ storageMode: 'server', status: capabilities({}), user: admin });
+        assert.deepEqual(info(on), [
+            on.labels.ConversationalUiServerTitle,
+            'The relay is on. Models: ministral-14b-latest, ministral-8b-latest; default: ministral-14b-latest; 40 requests a day per person.',
+            on.labels.ConversationalUiServerOwnKeyOff
+        ]);
+        const unlimited = await opened({ storageMode: 'server', status: capabilities({ requestsPerDay: null, ownKey: true }), user: admin });
+        assert.match(info(unlimited)[1], /; no daily limit\.$/);
+        assert.equal(info(unlimited)[2], unlimited.labels.ConversationalUiServerOwnKeyOn);
+        const off = await opened({ storageMode: 'server', status: capabilities({ relay: false, models: undefined, defaultModel: undefined, requestsPerDay: undefined }), user: admin });
+        assert.equal(info(off)[1], off.labels.ConversationalUiServerRelayOff);
+        const curl = await opened({ storageMode: 'server', status: capabilities({ relay: false, ownKey: true, problem: 'curl' }), user: admin });
+        assert.equal(info(curl)[1], curl.labels.ConversationalUiServerCurl);
+        const baseUrl = await opened({ storageMode: 'server', status: capabilities({ relay: false, problem: 'baseUrl' }), user: admin });
+        assert.equal(info(baseUrl)[1], baseUrl.labels.ConversationalUiServerBaseUrl);
+        assert.equal(info(await opened({ storageMode: 'server', status: capabilities({}) })), null, 'not for a user');
+        assert.equal(info(await opened({ storageMode: 'download', user: admin })), null, 'not without a server');
     });
 
     test('a turn: the request, what the tools did, the answer, and Undo this turn while it is the latest step', async () => {
