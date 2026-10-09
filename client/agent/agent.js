@@ -46,6 +46,9 @@
 
     var GENERATOR_NAME = 'FrameTrail-Conversational-UI';
 
+    // Whether the console has been told that the check of changes cannot run (once per page).
+    var lintWarned = false;
+
     function isObject(value) {
         return value !== null && typeof value === 'object' && !Array.isArray(value);
     }
@@ -400,8 +403,17 @@
 
                 if (!ConversationalUI.lint || options.lint === false || !turn.changes.length) { return []; }
 
+                // A check that cannot run (an older FrameTrail without FrameTrailLint) leaves the turn as it is, and says so once.
                 var result;
-                try { result = ConversationalUI.lint.run(current()); } catch (e) { return []; }
+                try {
+                    result = ConversationalUI.lint.run(current());
+                } catch (e) {
+                    if (!lintWarned) {
+                        lintWarned = true;
+                        console.warn('FrameTrail-Conversational-UI: changes are not checked: ' + e.message);
+                    }
+                    return [];
+                }
 
                 function hit(kind, ref) {
                     return ref !== undefined && touched.refs.indexOf(kind + ' ' + JSON.stringify(ref)) >= 0;

@@ -14,8 +14,8 @@ jobs:
 
     env:
       VERSION: ${{ github.ref_name }}
-      # The FrameTrail release whose pure scripts and schemas the JavaScript tests load (as in build.yml).
-      FRAMETRAIL_REF: v1.4.1
+      # The FrameTrail whose pure scripts, schemas, lint cases and type reference the JavaScript tests load (as in build.yml).
+      FRAMETRAIL_REF: 22c385839e44b89b4a333aab49f873fbc69565f2
       FRAMETRAIL_DIR: frametrail
 
     steps:

@@ -6,25 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FrameTrail-Conversational-UI is an add-on for [FrameTrail](https://github.com/OpenHypervideo/FrameTrail) that lets people edit a hypervideo in natural language, in a chat panel docked beside the player in the editor. The panel talks to Mistral's API through a relay on the server (server mode) or directly from the browser (every other storage mode).
 
-What the panel's model can do is defined once, declaratively (`shared/operations.json`), and carried out in the browser by the operations in `client/ops/`, against the open editor through FrameTrail's edit API. Lint rules (`shared/lint.json`, `client/lint/`) check a hypervideo after changes. Conformance fixtures (`shared/fixtures/`) say what both must do. The conversation (`client/agent/`) sends the user's messages, the system prompt (`shared/prompts/`) and the operations as tools to Mistral (`client/models/`) and carries out the tool calls; the panel (`client/ui/`) shows it.
+What the panel's model can do is defined once, declaratively (`shared/operations.json`), and carried out in the browser by the operations in `client/ops/`, against the open editor through FrameTrail's edit API. FrameTrail's lint rules (`FrameTrailLint`, run on a store by `client/lint/`) check a hypervideo after changes. Conformance fixtures (`shared/fixtures/`) say what the operations must do. The conversation (`client/agent/`) sends the user's messages, the system prompt (`shared/prompts/`) and the operations as tools to Mistral (`client/models/`) and carries out the tool calls; the panel (`client/ui/`) shows it.
 
 The server part (PHP) is small: a status action (which also tells the panel how it may reach Mistral and whether it can transcribe), the model relay, and transcription (the uploaded video's sound to a self-hosted Whisper server, the segments back to the panel, which makes subtitles of them). There is no server-side surface for agents outside the editor (an MCP endpoint, a command-line tool): it was planned and left out of v1, so the operations exist in JavaScript only.
 
-Work proceeds in phases; A0 (scaffold), A1 (operations, changesets, the interpreter), A2 (lint), A7 (the chat panel), A8 (the relay) and A9 (transcription) are done, A3–A6 (the server side for external agents) were dropped. The phase plan is kept outside this repository.
+Work proceeds in phases; A0 (scaffold), A1 (operations, changesets, the interpreter), A2 (lint), A7 (the chat panel), A8 (the relay), A9 (transcription) and A10 (lint and the type table from FrameTrail; the `review-eval` project skill) are done, A3–A6 (the server side for external agents) were dropped. The phase plan is kept outside this repository.
 
 ## Relationship to FrameTrail
 
 The add-on lives entirely outside FrameTrail and uses only its generic, documented building blocks:
 
-- **Browser:** `FrameTrail.registerExtension()` and its slots (`sidePanel`, `titlebarAction`, `editPanel`) and hooks, `edit` (the edit API: stored-format items, JSON Merge Patch updates, `transaction()` as one undo step, the busy editor and its Stop, and the reads around the data: `getInfo()`, `getUser()`, `permission(kind)`, `listHypervideos()`), `Localization.addLabels()`, `StorageManager.serverPost()` / `extensionURL()`, the states `storageMode`, `viewMode`, `editMode`, `editBusy`, `UndoManager`'s `getUndoDescription()`, `getRedoDescription()`, `undo()`, `redo()` and its `undoStateChanged` event (the panel's "Undo this turn"), and the pure globals in FrameTrail's bundle: `FrameTrailSerializer`, `FrameTrailKeyframes`, `FrameTrailSchema` + `FrameTrailSchemas`.
+- **Browser:** `FrameTrail.registerExtension()` and its slots (`sidePanel`, `titlebarAction`, `editPanel`) and hooks, `edit` (the edit API: stored-format items, JSON Merge Patch updates, `transaction()` as one undo step, the busy editor and its Stop, and the reads around the data: `getInfo()`, `getUser()`, `permission(kind)`, `listHypervideos()`), `Localization.addLabels()`, `StorageManager.serverPost()` / `extensionURL()`, the states `storageMode`, `viewMode`, `editMode`, `editBusy`, `UndoManager`'s `getUndoDescription()`, `getRedoDescription()`, `undo()`, `redo()` and its `undoStateChanged` event (the panel's "Undo this turn"), and the pure globals in FrameTrail's bundle: `FrameTrailSerializer`, `FrameTrailKeyframes`, `FrameTrailLint`, `FrameTrailSchema` + `FrameTrailSchemas`.
 - **Server:** the server extension manifest, `requireLogin()` / `userCheckLogin()` (the user record, with its `external` block under external authentication), `ftIsBearerRequest()`, `ftExternalAuthEnabled()`, `ftExtensionStorage()`, `ftExtensionSecrets()`, `ftResourceFilePath()` (a resource's file, `functions.incl.php`), `detectFFmpegPath()` (`files.php`, included when needed: FrameTrail's EXTENDING.md lets handlers include its server files), and `$conf["dir"]["data"]` with `hypervideos/_index.json`, `hypervideo.json` (`meta.creatorId`, `clips`) and `resources/_index.json` read as stored (DATA-MODEL.md).
-- **Data:** the JSON Schemas in FrameTrail's `schemas/`, `docs/DATA-MODEL.md`, and the data sets in `tests/fixtures/data/` (the tests read and lint them).
+- **Data:** the JSON Schemas in FrameTrail's `schemas/`, `docs/DATA-MODEL.md`, `docs/TYPES.md` (its table is the prompt's part about types), the data sets in `tests/fixtures/data/` (the tests read and lint them) and the lint cases in `tests/fixtures/lint/` (the tests run them on a model store).
 
 FrameTrail's own docs for these: `docs/EXTENDING.md` ("Writing an Extension", "Editing the Hypervideo", "Server Extensions"), `docs/DATA-MODEL.md`, `docs/DEPLOYMENT.md`.
 
 When the add-on needs something FrameTrail lacks, the change goes into FrameTrail as a generic feature that stands on its own: nothing in the FrameTrail repository mentions this add-on, AI, models, providers, agents or MCP — not in code, docs, examples, schemas, labels, tests or configuration keys. Never reach into FrameTrail internals beyond the building blocks above.
 
-Requires FrameTrail 1.4.1 or later, the first release with all of these but the edit API's reads around the data, which came after it (`develop` until the next release): the operations in the editor (`ops.liveStore`) need them, and say so when they are missing.
+Requires FrameTrail 1.4.1 or later, the first release with all of these but the edit API's reads around the data and `FrameTrailLint`, which came after it (`develop` until the next release): the operations in the editor (`ops.liveStore`) need the reads, the check of a turn's changes needs the lint, and both say so when they are missing (the lint once, in the console; the turn goes on unchecked).
 
 ## Naming
 
@@ -53,7 +53,7 @@ client/                     → build/client/frametrail-conversational-ui.js + .
 ├── ops/                    the operations: util.js (JSON, merge patches, schema references, errors,
 │                           Media Fragments, plain text, WebVTT), items.js (short forms; items and
 │                           patches from input), model-store.js, live-store.js, interpreter.js
-├── lint/                   lint.js: the rules of shared/lint.json
+├── lint/                   lint.js: FrameTrail's lint (FrameTrailLint) on a store
 ├── models/                 chat.js (Mistral's Chat Completions: streaming, tool calls, errors),
 │                           mistral.js (direct adapter), relay.js (through the server, A8)
 ├── media/                  transcribe.js (the route transcribe's client, WebVTT of its segments)
@@ -68,14 +68,16 @@ shared/
 ├── operations.json         the operations manifest (embedded in the bundle by the build)
 ├── operations.schema.json  its meta-schema
 ├── changeset.schema.json   the changeset format (embedded too)
-├── lint.json               the lint rules and the shape of their result (embedded too)
-├── fixtures/               conformance fixtures: README.md (the rules), data/, ops/, lint/
-├── prompts/                the system prompt: system.md, conversation.md, types.md (embedded too)
+├── fixtures/               conformance fixtures: README.md (the rules), data/, ops/
+├── prompts/                the system prompt: system.md, conversation.md, types.md (embedded too;
+│                           types.md written by scripts/sync-types.mjs)
 └── eval/                   tasks.json: the tool-calling evaluation's requests and checks
-scripts/                    build.sh (concatenation build), eval-models.mjs (the evaluation)
-tests/                      run-js.mjs (client, operations, lint), run-php.php (server part),
+scripts/                    build.sh (concatenation build), eval-models.mjs (the evaluation),
+                            sync-types.mjs (prompts/types.md from FrameTrail's docs/TYPES.md)
+tests/                      run-js.mjs (client, operations, lint on a store), run-php.php (server part),
                             relay/ (stand-ins for Mistral's API, a Whisper server and FrameTrail's
                             routers, for run-php.php)
+.claude/skills/review-eval/ a project skill (not shipped): reviews a failed evaluation run
 ```
 
 ## Decisions
@@ -142,15 +144,17 @@ Adding an operation: its entry in `operations.json` (keep the subset; `node test
 ## Prompts and the Evaluation
 
 - `shared/prompts/*.md` are Markdown without tabs or control characters, embedded by the build as strings (`SHARED_TEXT` in `build.sh`; the tests embed them the same way). Written for the model: what a hypervideo holds, how to work with the tools, "talk before you build", the types.
-- `scripts/eval-models.mjs` sends each request of `shared/eval/tasks.json` as a new conversation about a model store over a fixture, through the direct adapter, and checks the result (declarative checks, described in the file). It needs a key (`--key-file`, `MISTRAL_API_KEY`) and the build, and is not run in CI. Run it when the prompts, the tools or Mistral's models change; the default model follows from it.
+- `types.md` is generated: `node scripts/sync-types.mjs` writes a short header of its own (the body, `describe_type`, what every overlay takes) and the "At a Glance" table of FrameTrail's `docs/TYPES.md` (each type's first sentence there is the first sentence of its attribute schema's description). The tests fail while it differs from what the script makes of the FrameTrail working copy, or passes 4 KB (small models). What a type is for and how its attributes work is FrameTrail's knowledge: improve it in FrameTrail's schema descriptions (worded without any mention of this add-on, models or AI), never in the generated file; behaviour (how to work, where to put things) stays in `system.md` and `conversation.md`.
+- `scripts/eval-models.mjs` sends each request of `shared/eval/tasks.json` as a new conversation about a model store over a fixture, through the direct adapter, and checks the result (declarative checks, described in the file). It needs a key (`--key-file`, `MISTRAL_API_KEY`) and the build, and is not run in CI. Run it when the prompts, the tools or Mistral's models change; the default model follows from it. The project skill `review-eval` (`.claude/skills/review-eval/`) runs it, sorts out why tasks failed and proposes the smallest fixes.
 
 ## Lint
 
-Checks of a hypervideo that its schemas cannot express, run after changes (the chat panel after a turn): `shared/lint.json` lists the rules (id, severity, description) and the shape of a result; `client/lint/lint.js` (`FrameTrailConversationalUI.lint.run(store, { rules })`) implements them, and `shared/fixtures/lint/` holds it to the findings and messages.
+Checks of a hypervideo that its schemas cannot express, run after a turn with changes: FrameTrail's `FrameTrailLint` (in FrameTrail's bundle with its serializer). `client/lint/lint.js` runs it on a store: `FrameTrailConversationalUI.lint.run(store, { rules })` reads what `FrameTrailLint.run()` reads (`collect(store)`: the hypervideo, `getInfo()`'s start and end, the items, chapters, subtitles, and `store.resources()` where the store has it) and gives back its result; `validateResult()` checks one against `FrameTrailLint.RESULT_SCHEMA`.
 
-- **Rules:** `item-outside-video` (error), `item-partly-outside`, `overlay-overlap`, `unknown-resource`, `empty-required` (error), `missing-license`, `chapter-order`, `cue-outside-video` (warnings); `lint.json` says what each checks. Rules that need the video's end skip that part while it is unknown; `unknown-resource` needs `store.resources()`, which the live store does not have.
-- **Result:** `{ errors, warnings, findings: [{ rule, severity, kind, ref, creator?, related?, message }] }`, findings by rule in the order of `lint.json`, within a rule as the items are listed. `kind` is a kind of item, `subtitles` or `hypervideo`; `ref` is what `get_item` takes (an annotation's `creator` beside it). Messages are written for a person or a model, numbers as JavaScript writes them.
-- **Adding a rule:** its entry in `lint.json`, its implementation in `RULES` of `client/lint/lint.js` (the tests fail for a rule without one), cases in `shared/fixtures/lint/` (the tests fail for a rule no case finds).
+- **Rules, severities and messages** are FrameTrail's (`FrameTrailLint.RULES`; specified by FrameTrail's `tests/fixtures/lint/` and the "Lint rules" in its `tests/README.md`). `unknown-resource` needs `store.resources()`, which the live store does not have; rules that need the video's end skip that part while it is unknown.
+- **Result:** `{ errors, warnings, findings: [{ rule, severity, kind, ref, creator?, related?, message }] }`. `ref` is what `get_item` takes (an annotation's `creator` beside it).
+- **Missing:** without `FrameTrailLint` (a FrameTrail before the release after 1.4.1) `run()` throws saying so; the conversation tells the console once and goes on without the check.
+- **Tests:** `collect()` over a model store gives what `FrameTrailLint.partsOf()` gives for its bundle, and FrameTrail's lint cases, run on a model store, find what they say. A new rule or a change of one happens in FrameTrail, as a generic check with its cases there.
 
 ## Stack Rules
 
@@ -165,7 +169,7 @@ Checks of a hypervideo that its schemas cannot express, run after changes (the c
 - Parts that know no FrameTrail instance (operations, lint, model adapters, transcription's client) hang on the namespace. Per-instance state is created in the factory in `module.js`: several FrameTrail instances can share a page.
 - `module.js` registers `conversational-ui`. The factory gets FrameTrail's internal instance (`module()`, `getState()`, `changeState()`, `edit`). The chat panel is a `sidePanel` with `when: 'edit'`.
 - Load order is `JS_FILES` / `CSS_FILES` in `scripts/build.sh`. A new file goes there; the tests fail for a file that is not listed. Data from `shared/` that the client needs is listed in `SHARED_DATA` there and written into the bundle right after `namespace.js` as a property of the namespace (declared there as `null`); the prompts likewise in `SHARED_TEXT`, as `prompts.<name>` strings.
-- Code that needs FrameTrail's pure globals (`FrameTrailSerializer`, `FrameTrailKeyframes`, `FrameTrailSchema`, `FrameTrailSchemas`) reads them from `window` when it runs, not when it loads.
+- Code that needs FrameTrail's pure globals (`FrameTrailSerializer`, `FrameTrailKeyframes`, `FrameTrailLint`, `FrameTrailSchema`, `FrameTrailSchemas`) reads them from `window` when it runs, not when it loads.
 - FrameTrail clears every timer on the page when it switches hypervideos: restart timers in `onHypervideoChange`.
 
 ## Styling
@@ -235,11 +239,11 @@ node tests/run-js.mjs --build    # the same against build/
 php tests/run-php.php --build
 ```
 
-- `run-js.mjs` needs a FrameTrail working copy: `FRAMETRAIL_DIR`, or `--frametrail=<dir>`, or the sibling `../frametrail`. CI checks out `OpenHypervideo/FrameTrail` at `v1.4.1` (`FRAMETRAIL_REF` in both workflows), the oldest release whose pure scripts and schemas are as the add-on uses them.
-- `run-js.mjs` runs the client files in a `vm` context, in build order (with the shared data and prompts embedded as the build does), against a stand-in for FrameTrail (a small DOM, the state, StorageManager, UndoManager, edit over a model store): the build lists, the labels, the registration and the panel (access by storage mode, a turn with its undo, transcription by button and by the model's tool). For the operations and lint it first runs FrameTrail's pure scripts in the same context (`FrameTrailKeyframes`, `FrameTrailSerializer`, `FrameTrailSchema`, `FrameTrailSchemas`), as FrameTrail loads them; the live store's tests use a stand-in for the edit API. Then: the manifests (meta-schema, schemas in the subset, an implementation per operation and per lint rule, preconditions that fit the inputs), every conformance fixture against the model store, every read and lint over FrameTrail's own `tests/fixtures/data/`, the helpers, the live store against a stand-in edit API, `describe_type` against FrameTrail's schemas, the tools, the chat client (streams cut anywhere, errors, the fallback), transcription's client (events cut anywhere, refusals and failures, Stop; WebVTT of segments, language names), and the conversation against a scripted model (questions, changes, invalid input, rate limits, Stop, lint, the caller's tools).
+- `run-js.mjs` needs a FrameTrail working copy: `FRAMETRAIL_DIR`, or `--frametrail=<dir>`, or the sibling `../frametrail`. CI checks out `OpenHypervideo/FrameTrail` at `FRAMETRAIL_REF` (both workflows): the `develop` commit that brought `FrameTrailLint` and `docs/TYPES.md` (22c3858), until a FrameTrail release has them; then that release's tag.
+- `run-js.mjs` runs the client files in a `vm` context, in build order (with the shared data and prompts embedded as the build does), against a stand-in for FrameTrail (a small DOM, the state, StorageManager, UndoManager, edit over a model store): the build lists, the labels, the registration and the panel (access by storage mode, a turn with its undo, transcription by button and by the model's tool). For the operations and lint it first runs FrameTrail's pure scripts in the same context (`FrameTrailKeyframes`, `FrameTrailSerializer`, `FrameTrailLint`, `FrameTrailSchema`, `FrameTrailSchemas`), as FrameTrail loads them; the live store's tests use a stand-in for the edit API. Then: the manifests (meta-schema, schemas in the subset, an implementation per operation, preconditions that fit the inputs), `prompts/types.md` against what `sync-types.mjs` makes, every conformance fixture against the model store, FrameTrail's lint cases on the model store, every read and lint over FrameTrail's own `tests/fixtures/data/`, the helpers, the live store against a stand-in edit API, `describe_type` against FrameTrail's schemas, the tools, the chat client (streams cut anywhere, errors, the fallback), transcription's client (events cut anywhere, refusals and failures, Stop; WebVTT of segments, language names), and the conversation against a scripted model (questions, changes, invalid input, rate limits, Stop, lint and its absence, the caller's tools).
 - `run-php.php` checks the syntax of every PHP file, the guard, the manifest against the rules of FrameTrail's extension loader (names, callable handlers, requirements, prefixed functions), the status action, the relay and transcription: their parts one by one (configuration, headers, the count, admission, upstream failures; for transcription a data folder with hypervideos, resources and a video, ffmpeg's command, stand-ins for ffmpeg as shell scripts that write, fail, write nothing or sleep until stopped, the speech server's answers, temporary files) with stand-ins for FrameTrail's functions, then over HTTP: it starts PHP's built-in server twice, with `tests/relay/upstream.php` (stand-ins for Mistral's API and a Whisper server's `/audio/transcriptions`, answering by model name) and `tests/relay/harness.php` (a stand-in for FrameTrail's routers, the scene set by request headers and environment, the host with `output_buffering` on as php.ini-development has it), and checks streaming piece by piece, what reaches upstream, every failure and refusal, progress and keep-alives, Stop (curl and ffmpeg ended), and that no key appears in any answer. Where ffmpeg is installed it also checks the sound it takes out of a generated video (TAP `# SKIP` otherwise, as in the PHP Docker images). It needs PHP's curl extension and no FrameTrail working copy.
 - The conformance fixtures in `shared/fixtures/` (rules in its README) run in `run-js.mjs`, which fails on a folder there it does not know.
-- To write a fixture case, give the input, then let `plans/a1-validation/fill-fixtures.mjs` (operations) or `plans/a2-validation/fill-lint.mjs` (lint; both git-ignored) fill in what the JavaScript does, and check every filled value by hand before keeping it: the expectations must say what is right.
+- To write a fixture case, give the input, then let `plans/a1-validation/fill-fixtures.mjs` (git-ignored) fill in what the JavaScript does, and check every filled value by hand before keeping it: the expectations must say what is right. Lint cases are written in FrameTrail.
 
 CI (`.github/workflows/build.yml`): the JS tests on Node 20, the PHP tests on 7.4 and 8.4, and the build with both test runs against it. `release.yml` builds `v*` tags and attaches the zip to a GitHub release.
 
@@ -247,4 +251,4 @@ CI (`.github/workflows/build.yml`): the JS tests on Node 20, the PHP tests on 7.
 
 Build, then try it in a FrameTrail working copy: extract the zip into a FrameTrail build, or in FrameTrail's `src/` point the `config.json` entry at `build/client/` with a relative path on the same origin and symlink `build/server` to `src/_server/extensions/conversational-ui` (FrameTrail git-ignores what is installed there). Rebuild after every change. A throwaway data folder (`src/_data-*`, git-ignored in FrameTrail) keeps tests away from real data.
 
-The JavaScript tests need a FrameTrail working copy too (see Tests); a clone next to this repository, named `frametrail`, is found without setting anything. When the add-on moves to a newer FrameTrail release: `FRAMETRAIL_REF` in both workflows.
+The JavaScript tests need a FrameTrail working copy too (see Tests); a clone next to this repository, named `frametrail`, is found without setting anything. When the add-on moves to a newer FrameTrail: `FRAMETRAIL_REF` in both workflows, and `node scripts/sync-types.mjs`.

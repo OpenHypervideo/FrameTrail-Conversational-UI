@@ -15,7 +15,9 @@ pids
 *.pid
 *.seed
 .idea/
-.claude/
+# Claude Code: only the project skills are part of the repository
+.claude/*
+!.claude/skills/
 plans/
 node_modules/
 

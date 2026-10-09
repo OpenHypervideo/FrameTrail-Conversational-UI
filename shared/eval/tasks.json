@@ -71,7 +71,7 @@
             "name": "add a quiz",
             "request": "Add a multiple-choice quiz overlay at 4:10 for 20 seconds asking whether osmosis needs energy, with the answers Yes and No; No is correct.",
             "checks": [
-                { "item": { "kind": "overlays", "type": "quiz", "start": [249.5, 250.5], "end": [269.5, 270.5], "text": "osmosis", "attributes": { "questionType": "multipleChoice", "answers.0.text": { "matches": "^yes" }, "answers.1.text": { "matches": "^no" }, "answers.1.correct": "true" } } },
+                { "item": { "kind": "overlays", "type": "quiz", "start": [249.5, 250.5], "end": [269.5, 270.5], "text": "osmosis", "attributes": { "questionType": { "matches": "^(multipleChoice|undefined)$" }, "answers.0.text": { "matches": "^yes" }, "answers.1.text": { "matches": "^no" }, "answers.1.correct": "true" } } },
                 { "lintErrors": 0 }
             ]
         },

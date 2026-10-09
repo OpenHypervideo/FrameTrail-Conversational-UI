@@ -19,7 +19,8 @@
  * --verbose          print every tool call.
  *
  * Needs Node 20+, the add-on's build (build/client/) and a FrameTrail working
- * copy (FRAMETRAIL_DIR, default ../frametrail), like tests/run-js.mjs. Not
+ * copy with FrameTrailLint (FRAMETRAIL_DIR, default ../frametrail), like
+ * tests/run-js.mjs. Not
  * run in CI: it needs a key, and models answer differently from run to run.
  */
 
@@ -55,7 +56,7 @@ const context = {
 context.window = context;
 vm.createContext(context);
 
-for (const file of ['serialization/FrameTrailKeyframes.js', 'serialization/FrameTrailSerializer.js', 'schema/FrameTrailSchema.js', 'schema/FrameTrailSchemas.js']) {
+for (const file of ['serialization/FrameTrailKeyframes.js', 'serialization/FrameTrailSerializer.js', 'serialization/FrameTrailLint.js', 'schema/FrameTrailSchema.js', 'schema/FrameTrailSchemas.js']) {
     vm.runInContext(fs.readFileSync(path.join(FRAMETRAIL, 'src/_shared/frametrail-core', file), 'utf8'), context, { filename: file });
 }
 vm.runInContext(fs.readFileSync(BUNDLE, 'utf8'), context, { filename: 'frametrail-conversational-ui.js' });

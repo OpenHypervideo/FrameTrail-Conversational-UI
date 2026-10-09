@@ -1,7 +1,7 @@
 /*
  * FrameTrail-Conversational-UI — the add-on's one global,
  * FrameTrailConversationalUI, which its other client files fill: the labels
- * (locale/), the operations (ops/), the lint rules (lint/), model access
+ * (locale/), the operations (ops/), lint (lint/, FrameTrail's), model access
  * (models/), transcription (media/), the conversation (agent/) and the
  * panel (ui/). First in the
  * build order (scripts/build.sh), which writes the shared data and the
@@ -20,12 +20,11 @@ window.FrameTrailConversationalUI = {
     // FrameTrail's Localization.addLabels().
     labels: {},
 
-    // The operations manifest (shared/operations.json), the changeset schema
-    // (shared/changeset.schema.json) and the lint rules (shared/lint.json),
-    // written in by the build (SHARED_DATA in scripts/build.sh).
+    // The operations manifest (shared/operations.json) and the changeset
+    // schema (shared/changeset.schema.json), written in by the build
+    // (SHARED_DATA in scripts/build.sh).
     operations:      null,
     changesetSchema: null,
-    lintRules:       null,
 
     // The system prompt's fragments (shared/prompts/*.md) as text, by name,
     // written in by the build (SHARED_TEXT in scripts/build.sh).
@@ -34,7 +33,7 @@ window.FrameTrailConversationalUI = {
     // The operations' interpreter, stores and helpers, filled by ops/*.js.
     ops: {},
 
-    // The lint rules' implementation, set by lint/lint.js.
+    // FrameTrail's lint (FrameTrailLint) run on a store, set by lint/lint.js.
     lint: null,
 
     // Mistral's Chat Completions API and the adapters that reach it, filled by models/*.js.

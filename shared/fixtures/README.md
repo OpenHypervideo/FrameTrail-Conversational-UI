@@ -1,12 +1,14 @@
 # Conformance Fixtures
 
-These fixtures say what the operations of [`operations.json`](../operations.json) (`client/ops/`) and the lint rules of [`lint.json`](../lint.json) (`client/lint/`) must do. They are plain JSON; the rules below are what a runner applies, and they are the specification of the behaviour that any other implementation would have to follow too. `tests/run-js.mjs` is the runner:
+These fixtures say what the operations of [`operations.json`](../operations.json) (`client/ops/`) must do. They are plain JSON; the rules below are what a runner applies, and they are the specification of the behaviour that any other implementation would have to follow too. `tests/run-js.mjs` is the runner:
 
 ```bash
 node tests/run-js.mjs                     # needs a FrameTrail working copy, see the runner
 ```
 
 It runs every case, and fails on a folder here it does not know.
+
+The lint rules that check a turn's changes are FrameTrail's (`FrameTrailLint`): their cases are in FrameTrail's `tests/fixtures/lint/`, their rules in its `tests/README.md` ("Lint rules"). `tests/run-js.mjs` runs those cases on a model store, through `client/lint/`.
 
 ## Files
 
@@ -16,7 +18,6 @@ It runs every case, and fails on a folder here it does not know.
 | `data/project.json` | A project bundle with two hypervideos: an empty timeline of another user (90 s) and a trimmed video (in 12, out 132), hidden, with German subtitles. |
 | `data/legacy.json` | A hypervideo bundle in older shapes: `created` as `Date.toString()` text, two overlays made in the same second, the prefix-only `@context`, PHP's `[]` for `{}`, the clip's video named by its resource, an annotations index of local-folder mode, keys FrameTrail does not know. |
 | `ops/*.json` | Cases of the operations, one file per topic. |
-| `lint/*.json` | Cases of the lint rules, one file per topic. |
 
 Every data file is a valid bundle by FrameTrail's schemas (`hypervideo-bundle.schema.json`, `project-bundle.schema.json`).
 
@@ -96,44 +97,3 @@ What the interpreter does beyond the schemas:
 - **Generator:** every overlay and annotation an operation adds or changes gets the changeset's `generator` (else the context's), replacing any other. An update that changes nothing writes nothing, generator included.
 - **Dates** (`created`): what `new Date()` reads in FrameTrail's data — ISO 8601 (a date alone is UTC, a time without offset local time) and the text of `Date.prototype.toString()` and `toUTCString()`; anything else counts as no date. Written as `toISOString()` does.
 - **Numbers in text** (messages, Media Fragments, short forms): as JavaScript's `String(number)` writes them. Equality of JSON values: every number is a number, `60` equals `60.0`.
-
-## Lint Cases
-
-```json
-{
-    "description": "What the cases in this file have in common.",
-    "data": "lecture",
-    "user": { "id": "1", "name": "Ada", "role": "user" },
-    "duration": 600,
-    "cases": [
-        {
-            "name": "an overlay after the end",
-            "patch": [{ "op": "replace", "path": "/hypervideo/contents/0/target/selector/value", "value": "t=605,620&xywh=percent:10,10,50,20" }],
-            "rules": ["item-outside-video"],
-            "findings": [{ "rule": "item-outside-video", "severity": "error", "kind": "overlays", "ref": "…", "message": "…" }]
-        }
-    ]
-}
-```
-
-`data`, `user`, `duration`, `now` and `hypervideoId` as in the operation cases (a case may give its own).
-
-| Key | Meaning |
-|-----|---------|
-| `patch` | A JSON Patch (`add`, `remove`, `replace`) applied to the data before the store is made: how the case differs from the data set. Absent: the data as it is. |
-| `rules` | Run only these rules. Absent: all of them. |
-| `findings` | Exactly the findings, in order (compared as JSON values). |
-
-A runner makes a model store over the patched data, runs the rules, and checks that the result follows `$defs/result` of `lint.json`, that `errors` and `warnings` count the findings of each severity, and that the findings are those given. Every rule must be found by some case.
-
-### The rules
-
-What the rules do beyond `lint.json`:
-
-- **What is read:** the store's overlays, annotations (of every user) and code snippets as `list()` gives them, its chapters (sorted, `list('chapters')`; `chapter-order` reads them in stored order from `getHypervideo()`), the clip of `getHypervideo()`, the time of `getInfo()` (`start`, and `end` when known), each subtitle language's text, the resources of `resources()` when the store has it.
-- **Order:** findings by rule in the order of `lint.json`; within a rule overlays, then annotations, then code snippets, then chapters, each as listed. `overlay-overlap` goes through the pairs by the later overlay, then the earlier.
-- **Times:** an item's span is its Media Fragments time (`t=start,end`). Outside the video: a span that starts at or after the end, or ends at or before the start while starting before it; a point (code snippet, chapter) at or after the end, or before the start. Partly outside: a span not outside whose end is after the end, or whose start is before the start. A span of no length at the start is neither.
-- **Overlap:** the boxes of `xywh=percent:` (with box motion, the union box the selector carries), width and height above 0; time spans and boxes that only touch do not overlap; hotspots and cursors are left out. The time in the message is from the later start to the earlier end.
-- **Empty:** a value counts as empty when it is not a string or is white space only; a text overlay's text and title, a quiz's question and answer texts are made plain text (the rule above) first, HTML, chart data, code and sources are taken as they are. Source types are image, video, audio, pdf, youtube, vimeo, wistia, loom, twitch, soundcloud, spotify, webpage, wikipedia, mastodon, codepen, figma and urlpreview (a source in `body.source` or `body.value`); entity also takes the item's `frametrail:uri`. Quizzes without `questionType` are multiple choice. Hotspot actions that need a target: `openUrl`, `jumpToTime`, `jumpToHypervideo` (`actionTarget` missing, `null` or empty text; `0` is a target). The message lists what is missing; a quiz's question comes before its answers.
-- **License:** an overlay is made from a resource when its body has a `frametrail:resourceId` that is not `null` or empty; it shows a media file when it is an image, video, audio or pdf with a source.
-- **Cues:** by the WebVTT rule above; only for a clip without an out point (a positive `out`) and a known end; one finding per language, counting the cues that start at or after the end.

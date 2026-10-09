@@ -6,11 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
-# The FrameTrail release whose serializer, keyframe math, validator and
-# schemas the JavaScript tests load (see tests/run-js.mjs): the oldest release
-# that has them as the add-on uses them.
+# The FrameTrail whose serializer, keyframe math, lint, validator, schemas,
+# lint cases and type reference the JavaScript tests load (see
+# tests/run-js.mjs): the develop commit that brought FrameTrailLint and
+# docs/TYPES.md, until a FrameTrail release has them; then that release's tag.
 env:
-  FRAMETRAIL_REF: v1.4.1
+  FRAMETRAIL_REF: 22c385839e44b89b4a333aab49f873fbc69565f2
   FRAMETRAIL_DIR: frametrail
 
 jobs:

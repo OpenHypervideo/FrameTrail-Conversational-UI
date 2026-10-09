@@ -58,7 +58,7 @@ JS_FILES=(
     "ops/live-store.js"
     "ops/interpreter.js"
 
-    # Lint rules
+    # Lint (FrameTrail's, on a store)
     "lint/lint.js"
 
     # Model access
@@ -89,7 +89,6 @@ JS_FILES=(
 SHARED_DATA=(
     "operations:operations.json"
     "changesetSchema:changeset.schema.json"
-    "lintRules:lint.json"
 )
 
 #  Text from shared/ (Markdown), written in after

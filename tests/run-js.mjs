@@ -7,13 +7,16 @@
  * The client files run in a vm context, in the order of scripts/build.sh, as
  * they run in the browser: against a stand-in for FrameTrail that records what
  * the extension registers, and, for the operations, with FrameTrail's own
- * serializer, keyframe math, validator and schemas loaded first, as FrameTrail
- * loads them. Those come from a FrameTrail working copy (1.4.1 or later): the
+ * serializer, keyframe math, lint, validator and schemas loaded first, as
+ * FrameTrail loads them. Those come from a FrameTrail working copy with
+ * FrameTrailLint (the release after 1.4.1; develop until then): the
  * environment variable FRAMETRAIL_DIR, or --frametrail=<dir>, or the folder
  * next to this repository's, ../frametrail.
  *
  * The conformance fixtures in shared/fixtures/ run against the model store;
- * shared/fixtures/README.md has the rules.
+ * shared/fixtures/README.md has the rules. FrameTrail's lint cases
+ * (tests/fixtures/lint/ of the working copy) run against it too, through
+ * client/lint/.
  */
 
 import { describe, test } from 'node:test';
@@ -22,6 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { typesPrompt } from '../scripts/sync-types.mjs';
 
 const ROOT    = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLIENT  = path.join(ROOT, 'client');
@@ -41,6 +45,7 @@ const FRAMETRAIL = path.resolve(ROOT, (process.argv.find((arg) => arg.startsWith
 const FRAMETRAIL_SCRIPTS = [
     'src/_shared/frametrail-core/serialization/FrameTrailKeyframes.js',
     'src/_shared/frametrail-core/serialization/FrameTrailSerializer.js',
+    'src/_shared/frametrail-core/serialization/FrameTrailLint.js',
     'src/_shared/frametrail-core/schema/FrameTrailSchema.js',
     'src/_shared/frametrail-core/schema/FrameTrailSchemas.js'
 ];
@@ -61,7 +66,7 @@ const FIXTURES = path.join(SHARED, 'fixtures');
 const DATA     = path.join(FIXTURES, 'data');
 
 // The folders of shared/fixtures/; anything else there is an error.
-const FIXTURE_FOLDERS = ['data', 'ops', 'lint'];
+const FIXTURE_FOLDERS = ['data', 'ops'];
 
 function fixtureFiles(folder) {
     const dir = path.join(FIXTURES, folder);
@@ -256,7 +261,7 @@ let frameTrailChecked = false;
 function frameTrailScripts() {
     if (!frameTrailChecked) {
         const missing = FRAMETRAIL_SCRIPTS.filter((file) => !fs.existsSync(path.join(FRAMETRAIL, file)));
-        assert.deepEqual(missing, [], 'No FrameTrail working copy (1.4.1 or later) at ' + FRAMETRAIL
+        assert.deepEqual(missing, [], 'No FrameTrail working copy with FrameTrailLint (the release after 1.4.1; develop until then) at ' + FRAMETRAIL
             + '; set FRAMETRAIL_DIR or pass --frametrail=<dir>');
         frameTrailChecked = true;
     }
@@ -392,7 +397,7 @@ describe('scripts/build.sh', () => {
 
     test('embeds the shared data the client needs, as properties the namespace declares', () => {
         const namespace = fs.readFileSync(path.join(CLIENT, 'namespace.js'), 'utf8');
-        assert.deepEqual(SHARED_DATA.map((entry) => entry.file).sort(), ['changeset.schema.json', 'lint.json', 'operations.json']);
+        assert.deepEqual(SHARED_DATA.map((entry) => entry.file).sort(), ['changeset.schema.json', 'operations.json']);
         for (const { property, file } of SHARED_DATA) {
             assert.ok(fs.existsSync(path.join(SHARED, file)), 'shared/' + file);
             assert.match(namespace, new RegExp('^\\s*' + property + ':\\s*null', 'm'), 'namespace.js declares ' + property);
@@ -409,6 +414,12 @@ describe('scripts/build.sh', () => {
             const text = fs.readFileSync(path.join(SHARED, file), 'utf8');
             assert.doesNotMatch(text, /[\u0000-\u0009\u000b-\u001f\u007f]/, file + ' holds a control character');
         }
+    });
+
+    test('prompts/types.md is what scripts/sync-types.mjs makes of FrameTrail\'s docs/TYPES.md, at most about 4 KB', () => {
+        const text = fs.readFileSync(path.join(SHARED, 'prompts', 'types.md'), 'utf8');
+        assert.ok(text === typesPrompt(FRAMETRAIL), 'shared/prompts/types.md is out of date: run node scripts/sync-types.mjs');
+        assert.ok(Buffer.byteLength(text) <= 4096, Buffer.byteLength(text) + ' bytes');
     });
 
 });
@@ -627,27 +638,59 @@ describe('shared/operations.json', () => {
 });
 
 
-const LINT = readJSON(path.join(SHARED, 'lint.json'));
+// FrameTrail's lint cases and their data sets, in the working copy (tests/fixtures/lint/).
+const FRAMETRAIL_LINT = path.join(FRAMETRAIL, 'tests', 'fixtures', 'lint');
 
-describe('shared/lint.json', () => {
+describe('lint (FrameTrail\'s, on a store)', () => {
 
-    test('names each rule once, with a severity and a description, and each has an implementation', () => {
-        const { ns } = environment(),
-              ids    = LINT.rules.map((rule) => rule.id);
-        assert.equal(new Set(ids).size, ids.length);
-        for (const rule of LINT.rules) {
-            assert.match(rule.id, /^[a-z]+(-[a-z]+)*$/, rule.id);
-            assert.ok(['error', 'warning'].includes(rule.severity), rule.id + ': ' + rule.severity);
-            assert.ok(typeof rule.description === 'string' && rule.description !== '', rule.id);
-        }
-        assert.deepEqual(Object.keys(ns.lint.RULES).sort(), [...ids].sort());
-    });
-
-    test('its $defs are in FrameTrail\'s schema subset', () => {
+    test('its result follows FrameTrailLint.RESULT_SCHEMA', () => {
         const { ns } = environment();
         assert.deepEqual(json(ns.lint.validateResult({ errors: 0, warnings: 0, findings: [] })), []);
         assert.notDeepEqual(json(ns.lint.validateResult({ findings: [{ rule: 'x' }] })), []);
     });
+
+    test('reads from a model store what FrameTrailLint.partsOf() reads from its bundle', () => {
+        const { context, ops, ns } = environment();
+        for (const [name, options] of [['lecture', { duration: 600 }], ['lecture', {}], ['legacy', {}], ['project', { hypervideoId: '4' }], ['project', { hypervideoId: '7', duration: 140 }]]) {
+            const data  = fixtureData(name),
+                  store = ops.modelStore(data, Object.assign({ user: { id: '1', name: 'Ada', role: 'admin' } }, options));
+            assert.deepStrictEqual(json(ns.lint.collect(store)), json(context.FrameTrailLint.partsOf(data, options)), name + ' ' + JSON.stringify(options));
+        }
+    });
+
+    test('says what is missing on a FrameTrail without FrameTrailLint', () => {
+        const { context } = load({ frameTrail: true }),
+              ns          = context.FrameTrailConversationalUI,
+              store       = ns.ops.modelStore(fixtureData('lecture'), { user: { id: '1', name: 'Ada', role: 'user' } });
+        vm.runInContext("delete window.FrameTrailLint", context);
+        assert.throws(() => ns.lint.run(store), /needs FrameTrail's FrameTrailLint/);
+    });
+
+    const cases = fs.existsSync(FRAMETRAIL_LINT) ? fs.readdirSync(FRAMETRAIL_LINT).filter((name) => name.endsWith('.json')).sort() : [];
+
+    test('FrameTrail\'s lint cases are there', () => {
+        assert.ok(cases.length, 'no lint cases in ' + FRAMETRAIL_LINT);
+    });
+
+    for (const file of cases) {
+
+        const fixture = readJSON(path.join(FRAMETRAIL_LINT, file));
+
+        describe('FrameTrail\'s ' + file + ', on a model store', () => {
+            for (const c of fixture.cases) {
+                test(c.name, () => {
+                    const { ns } = environment(),
+                          given  = (key) => (c[key] !== undefined) ? c[key] : fixture[key],
+                          data   = applyPatch(readJSON(path.join(FRAMETRAIL_LINT, 'data', given('data') + '.json')), c.patch || []),
+                          store  = ns.ops.modelStore(data, { user: { id: '1', name: 'Ada', role: 'user' }, duration: given('duration'), hypervideoId: given('hypervideoId') }),
+                          result = json(ns.lint.run(store, c.rules ? { rules: c.rules } : undefined));
+                    assert.deepEqual(json(ns.lint.validateResult(result)), []);
+                    assert.deepStrictEqual(result.findings, c.findings);
+                });
+            }
+        });
+
+    }
 
 });
 
@@ -828,30 +871,9 @@ function runCase(fixture, c) {
 
 }
 
-/**
- * Runs one lint case: the case's patch applied to its data, a model store
- * made, the rules run (all, or the case's rules). Returns the rules found.
- */
-function runLintCase(fixture, c) {
-
-    const { ns } = environment(),
-          data   = applyPatch(fixtureData(c.data || fixture.data), c.patch || []),
-          store  = ns.ops.modelStore(data, storeOptions(fixture, c)),
-          result = json(ns.lint.run(store, c.rules ? { rules: c.rules } : undefined));
-
-    assert.deepEqual(json(ns.lint.validateResult(result)), [], 'the result follows $defs/result');
-    assert.equal(result.errors, result.findings.filter((f) => f.severity === 'error').length, 'errors counts the errors');
-    assert.equal(result.warnings, result.findings.filter((f) => f.severity === 'warning').length, 'warnings counts the warnings');
-    assert.deepStrictEqual(result.findings, c.findings);
-
-    return result.findings.map((finding) => finding.rule);
-
-}
-
 describe('shared/fixtures', () => {
 
-    const covered = new Set(),
-          found   = new Set();
+    const covered = new Set();
 
     test('hold ' + FIXTURE_FOLDERS.join(', ') + ' and README.md, and nothing else', () => {
         assert.deepEqual(fs.readdirSync(FIXTURES).filter((name) => name !== 'README.md' && name !== '.DS_Store').sort(), [...FIXTURE_FOLDERS].sort());
@@ -882,24 +904,6 @@ describe('shared/fixtures', () => {
 
     test('cover every operation', () => {
         assert.deepEqual(MANIFEST.operations.map((op) => op.name).filter((name) => !covered.has(name)), []);
-    });
-
-    for (const file of fixtureFiles('lint')) {
-
-        const fixture = readJSON(path.join(FIXTURES, 'lint', file));
-
-        describe('lint/' + file, () => {
-            for (const c of fixture.cases) {
-                test(c.name, () => {
-                    for (const rule of runLintCase(fixture, c)) { found.add(rule); }
-                });
-            }
-        });
-
-    }
-
-    test('find something for every lint rule', () => {
-        assert.deepEqual(LINT.rules.map((rule) => rule.id).filter((id) => !found.has(id)), []);
     });
 
 });
@@ -1826,6 +1830,22 @@ describe('agent.conversation', () => {
         assert.deepEqual(json(turn.lint), []);
         assert.deepEqual(store.transactions.length, 1);
         assert.equal(adapter.requests.length, 4);
+    });
+
+    test('on a FrameTrail without FrameTrailLint a turn keeps its changes, and the console says once that they are not checked', async () => {
+        const { context, warnings } = load({ frameTrail: true }),
+              ns    = context.FrameTrailConversationalUI,
+              store = lectureStore(ns.ops);
+        vm.runInContext("delete window.FrameTrailLint", context);
+        for (const start of [450, 460]) {
+            const adapter = scripted([calls(call('aaaaaaaa1', 'add_chapter', { start, title: 'Summary ' + start })), says('Added it.')]),
+                  turn    = await talk(ns, store, adapter).send('Add a chapter');
+            assert.equal(turn.state, 'done');
+            assert.deepEqual(json(turn.lint), []);
+            assert.equal(adapter.requests.length, 2, 'no check message');
+        }
+        assert.deepEqual(json(store.list('chapters').map((chapter) => chapter.start)), [0, 120, 300, 450, 460]);
+        assert.deepEqual(warnings.filter((warning) => /changes are not checked/.test(warning)).length, 1);
     });
 
     // A tool of the panel's, as the panel's transcription is: it waits, then hands back subtitles to write.
