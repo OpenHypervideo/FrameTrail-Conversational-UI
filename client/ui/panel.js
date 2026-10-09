@@ -178,11 +178,13 @@
         });
     }
 
-    // When a gateway's allowance comes back (its quota refusal's resetsAt), as a date in the interface's language.
+    // When a gateway's allowance comes back (its quota refusal's resetsAt), as a date in the interface's language:
+    // the calendar day the gateway wrote, not that moment in the viewer's time zone (midnight +01:00 is still October 31 in UTC).
     function renewalDate(error, language) {
-        var date = (error && typeof error.resetsAt === 'string') ? new Date(error.resetsAt) : null;
+        var day = (error && typeof error.resetsAt === 'string') ? /^(\d{4})-(\d{2})-(\d{2})/.exec(error.resetsAt) : null;
+        var date = day ? new Date(Date.UTC(+day[1], day[2] - 1, +day[3])) : null;
         if (!date || isNaN(date.getTime())) { return ''; }
-        try { return date.toLocaleDateString(language || undefined, { day: 'numeric', month: 'long' }); } catch (e) { return date.toDateString(); }
+        try { return date.toLocaleDateString(language || undefined, { day: 'numeric', month: 'long', timeZone: 'UTC' }); } catch (e) { return date.toUTCString().slice(5, 11); }
     }
 
     // A refusal for a month's allowance (a platform's gateway), rather than the relay's own day.
