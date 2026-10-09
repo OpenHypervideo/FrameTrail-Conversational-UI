@@ -13,11 +13,22 @@
  *
  *     X-Test-Secrets   base64 of the JSON the add-on's secrets file would return
  *     X-Test-User      a user id (signed in), "inactive" (an inactive account) or none (signed out)
+ *     X-Test-Role      the user's role ("user" when none)
  *     X-Test-External  a platform subject: external authentication on, the account carries it
  *     X-Test-Bearer    "1": the request came with a personal API token
  *
- * The add-on's private folder is RELAY_STORAGE.
+ * The add-on's private folder is RELAY_STORAGE, FrameTrail's data folder
+ * RELAY_DATA, the ffmpeg FrameTrail would find RELAY_FFMPEG (none when
+ * empty), and RELAY_TICK the seconds transcription may go without progress.
  */
+
+if (getenv("RELAY_TICK")) {
+    define("FT_CONVERSATIONAL_UI_TICK", (float)getenv("RELAY_TICK"));
+    // A gateway's job is looked at as often as progress is due.
+    define("FT_CONVERSATIONAL_UI_POLL", (float)getenv("RELAY_TICK"));
+}
+
+$conf = array("dir" => array("data" => getenv("RELAY_DATA") ?: "/nonexistent"));
 
 function ftExtensionStorage($name) {
     $dir = getenv("RELAY_STORAGE");
@@ -34,7 +45,8 @@ function userCheckLogin($userRole = false) {
     if ($user === "") {
         return array("status" => "fail", "code" => 0, "string" => "User not logged in");
     }
-    $record = array("id" => $user, "name" => "Tester", "role" => "user", "active" => ($user === "inactive") ? 0 : 1);
+    $role   = isset($_SERVER["HTTP_X_TEST_ROLE"]) ? $_SERVER["HTTP_X_TEST_ROLE"] : "user";
+    $record = array("id" => $user, "name" => "Tester", "role" => $role, "active" => ($user === "inactive") ? 0 : 1);
     if (isset($_SERVER["HTTP_X_TEST_EXTERNAL"])) {
         $record["external"] = array("provider" => "platform", "sub" => $_SERVER["HTTP_X_TEST_EXTERNAL"]);
     }
@@ -52,6 +64,23 @@ function ftIsBearerRequest() {
 
 function ftExternalAuthEnabled() {
     return isset($_SERVER["HTTP_X_TEST_EXTERNAL"]);
+}
+
+// FrameTrail's (functions.incl.php): a plain file name, directly in resources/.
+function ftResourceFilePath($name) {
+    global $conf;
+    if (!is_string($name) || $name === "" || $name !== basename($name)
+        || strpos($name, "\\") !== false || $name[0] === "." || $name === "_index.json") {
+        return null;
+    }
+    $dir  = realpath($conf["dir"]["data"] . "/resources");
+    $path = ($dir === false) ? false : realpath($dir . "/" . $name);
+    return ($path === false || dirname($path) !== $dir || !is_file($path)) ? null : $path;
+}
+
+// FrameTrail's (files.php) looks in the usual places.
+function detectFFmpegPath() {
+    return getenv("RELAY_FFMPEG") ?: null;
 }
 
 $manifest = (function($__file) { return include $__file; })(getenv("RELAY_SERVER_DIR") . "/extension.php");

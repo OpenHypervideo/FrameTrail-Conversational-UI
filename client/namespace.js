@@ -2,7 +2,8 @@
  * FrameTrail-Conversational-UI — the add-on's one global,
  * FrameTrailConversationalUI, which its other client files fill: the labels
  * (locale/), the operations (ops/), the lint rules (lint/), model access
- * (models/), the conversation (agent/) and the panel (ui/). First in the
+ * (models/), transcription (media/), the conversation (agent/) and the
+ * panel (ui/). First in the
  * build order (scripts/build.sh), which writes the shared data and the
  * prompts in right after it.
  *
@@ -38,6 +39,9 @@ window.FrameTrailConversationalUI = {
 
     // Mistral's Chat Completions API and the adapters that reach it, filled by models/*.js.
     models: {},
+
+    // Transcription on the server and the WebVTT made of it, filled by media/*.js.
+    media: {},
 
     // The conversation with the model and its tools, filled by agent/*.js.
     agent: {},

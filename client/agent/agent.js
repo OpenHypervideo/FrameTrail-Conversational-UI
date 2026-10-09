@@ -18,6 +18,12 @@
  * so does FrameTrail's own Stop. Any other end keeps them: a rate limit that
  * outlasts the retries ends the turn as "limited", and resume() goes on from
  * where it stopped.
+ *
+ * Besides the operations, the caller may offer tools of its own (actions):
+ * work that is not a change of the store, such as transcribing the video on
+ * the server, which may hand back one operation to write with its result. It
+ * runs before the turn's transaction is opened for that write, so a long wait
+ * leaves the editor free.
  */
 
 (function(ConversationalUI) {
@@ -104,6 +110,9 @@
      * @param {Boolean} [options.lint]     check the turn's changes (default true)
      * @param {Function} [options.describe] (request) → the undo step's description
      * @param {Object} [options.retry]     { delays, budget } in seconds: how rate limits are waited out (defaults above)
+     * @param {Array} [options.actions]    tools beyond the operations: { definition: { name, description, parameters },
+     *                                     available: () → Boolean (offered when true; default always), run: (input,
+     *                                     { signal, progress(value) }) → promise of { result, write?: { op, input } } }
      * @return {Object}
      */
     function conversation(options) {
@@ -160,6 +169,18 @@
                 });
                 return;
             }
+        }
+
+        // The caller's tools that are offered now.
+        function actions() {
+            return (options.actions || []).filter(function(action) {
+                return isObject(action) && isObject(action.definition) && typeof action.run === 'function'
+                    && (typeof action.available !== 'function' || action.available() === true);
+            });
+        }
+
+        function actionNamed(name) {
+            return actions().filter(function(action) { return action.definition.name === name; })[0] || null;
         }
 
         function canResume() {
@@ -320,15 +341,30 @@
 
                 try {
 
-                    var input = parseArguments(toolCall['function'].arguments),
-                        op    = ops.operation(name);
+                    var input  = parseArguments(toolCall['function'].arguments),
+                        op     = ops.operation(name),
+                        action = op ? null : actionNamed(name);
 
                     entry.input = input;
 
-                    if (!op) { throw util.opError('invalid', 'There is no tool ' + JSON.stringify(name)); }
+                    if (!op && !action) { throw util.opError('invalid', 'There is no tool ' + JSON.stringify(name)); }
 
                     var result;
-                    if (op.effect === 'write') {
+                    if (action) {
+                        var outcome = await action.run(input, {
+                            signal:   signal,
+                            progress: function(value) { entry.progress = value; emit('tool', entry); }
+                        });
+                        if (signal.aborted) { throw stoppedError(); }
+                        result = isObject(outcome) ? outcome.result : undefined;
+                        if (isObject(outcome) && isObject(outcome.write)) {
+                            await openTransaction();
+                            if (signal.aborted) { throw stoppedError(); }
+                            var written = tx.recorder.run(outcome.write.op, outcome.write.input);
+                            turn.changes.push({ name: outcome.write.op, input: outcome.write.input, result: written, action: name });
+                            remember(ops.operation(outcome.write.op), written);
+                        }
+                    } else if (op.effect === 'write') {
                         await openTransaction();
                         if (signal.aborted) { throw stoppedError(); }
                         result = tx.recorder.run(name, input);
@@ -398,7 +434,9 @@
 
                 compact(messages.length - 1);
 
-                var tools      = agent.tools(store),
+                var tools      = agent.tools(store).concat(actions().map(function(action) {
+                        return { type: 'function', 'function': util.clone(action.definition) };
+                    })),
                     toolChoice = 'auto',
                     checked    = false;
 

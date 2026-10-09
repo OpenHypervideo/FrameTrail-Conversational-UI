@@ -270,6 +270,16 @@
     opacity: .55;
 }
 
+/* Transcription */
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiTranscriptHint button {
+    margin-left: 4px;
+}
+
+.sidePanelItem[data-extension="conversational-ui"] .conversationalUiTranscribeForm .custom-select {
+    max-width: 100%;
+}
+
 /* Why the panel cannot be used yet */
 
 .sidePanelItem[data-extension="conversational-ui"] .conversationalUiNotice {

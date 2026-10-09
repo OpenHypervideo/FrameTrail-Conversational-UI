@@ -928,7 +928,8 @@ describe('reading FrameTrail\'s fixtures', () => {
 
     const dataDir = path.join(FRAMETRAIL, 'tests', 'fixtures', 'data');
 
-    for (const name of fs.existsSync(dataDir) ? fs.readdirSync(dataDir).sort() : []) {
+    // Data sets are folders (a file there, such as Finder's .DS_Store, is none).
+    for (const name of fs.existsSync(dataDir) ? fs.readdirSync(dataDir).filter((entry) => fs.statSync(path.join(dataDir, entry)).isDirectory()).sort() : []) {
 
         test(name + ': every read gives a result that follows its output schema, and lint one that follows its own', () => {
 
@@ -1354,6 +1355,24 @@ describe('models.chat', () => {
         assert.equal((await failure(answer(401, { error: { code: 'login', message: 'Sign in' } }))).code, 'login');
     });
 
+    test('a gateway\'s quota refusal keeps its period and renewal, and the panel words it', async () => {
+        const { ns } = environment();
+        let error = null;
+        try {
+            await ns.models.chat({ streaming: false, post: () => Promise.resolve(answer(429,
+                { error: { code: 'quota', message: 'This month\'s 500 assistant requests are used up.', period: 'month', resetsAt: '2026-11-01T00:00:00+01:00' } },
+                { 'retry-after': '3600' })) }, { model: 'm' });
+        } catch (e) { error = e; }
+        assert.deepEqual([error.code, error.period, error.resetsAt, error.retryAfter], ['quota', 'month', '2026-11-01T00:00:00+01:00', 3600]);
+        const labels = ns.labels.en;
+        const words  = ns.ui.errorText(labels, error, 'm', 'en');
+        assert.match(words, /^This month's requests to the assistant are used up\. They renew on (November 1|1 November)\.$/);
+        assert.equal(ns.ui.errorText(ns.labels.de, error, 'm', 'de'), 'Die Anfragen an den Assistenten für diesen Monat sind aufgebraucht. Sie erneuern sich am 1. November.');
+        // The relay's own day, or a gateway's day cap: today's words, as before.
+        const day = Object.assign(new Error('x'), { code: 'quota' });
+        assert.equal(ns.ui.errorText(labels, day, 'm', 'en'), labels.ConversationalUiErrorQuota);
+    });
+
     test('through the relay\'s action: Mistral\'s errors read as in direct mode, the relay\'s refusals by their code', async () => {
         const { ns } = environment();
         const viaAction = async (reply) => {
@@ -1432,6 +1451,155 @@ describe('models.chat', () => {
 /* ---------------------------------------------------------------------- */
 
 // A model's messages: tool calls, or words.
+// Named server-sent events ([name, data]; no name: a plain data event), with a comment between, cut into pieces of a given size.
+function sse(events, size = 1000) {
+    const text  = events.map(([name, data]) => (name ? 'event: ' + name + '\n' : '') + 'data: ' + JSON.stringify(data) + '\n\n').join(': keep-alive\n\n'),
+          bytes = new TextEncoder().encode(text);
+    let at = 0;
+    return {
+        ok: true, status: 200, headers: { get: () => null }, text: () => Promise.resolve(text),
+        body: {
+            getReader: () => ({
+                read: () => {
+                    if (at >= bytes.length) { return Promise.resolve({ done: true }); }
+                    const value = bytes.slice(at, at + size);
+                    at += size;
+                    return Promise.resolve({ done: false, value });
+                },
+                cancel: () => Promise.resolve()
+            })
+        }
+    };
+}
+
+// A fetch that never answers, and rejects as fetch does when its signal aborts.
+function hanging(url, init) {
+    return new Promise((resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' })));
+    });
+}
+
+describe('media', () => {
+
+    test('toVtt: times moved by the offset, outside the span left out, across its edges cut, in order, the text as WebVTT needs it', () => {
+        const { ns, ops } = environment();
+        const made = ns.media.toVtt([
+            { start: 10, end: 12, text: ' Second  line\n here. ' },
+            { start: 0, end: 1, text: ' Before the span.' },
+            { start: 1, end: 3, text: 'Across the start.' },
+            { start: 3.5, end: 3.5, text: 'A moment.' },
+            { start: 4, end: 6, text: ' [BLANK_AUDIO]' },
+            { start: 6, end: 7, text: '   ' },
+            { start: 7, end: 8, text: 'Fish & chips, AT&T, 3 < 4 and A --> B.' },
+            { start: 3700, end: 3702, text: 'An hour in.' },
+            { start: 4000, end: 4002, text: 'After the end.' },
+            { start: 3990, end: 4010, text: 'Across the end.' },
+            'not a segment',
+            { start: 'x', end: 2, text: 'no' }
+        ], { offset: 2, start: 3, end: 4000 });
+        assert.equal(made.cues, 6);
+        assert.equal(made.vtt, 'WEBVTT\n'
+            + '\n00:00:03.000 --> 00:00:05.000\nAcross the start.\n'
+            + '\n00:00:05.500 --> 00:00:06.000\nA moment.\n'
+            + '\n00:00:09.000 --> 00:00:10.000\nFish & chips, AT&amp;T, 3 &lt; 4 and A --&gt; B.\n'
+            + '\n00:00:12.000 --> 00:00:14.000\nSecond line here.\n'
+            + '\n01:01:42.000 --> 01:01:44.000\nAn hour in.\n'
+            + '\n01:06:32.000 --> 01:06:40.000\nAcross the end.\n');
+        // FrameTrail's edit contract takes it, and the transcript reads the text as it was said.
+        const store = ops.modelStore(readJSON(path.join(DATA, 'lecture.json')), { user: { id: '1', name: 'Ada', role: 'admin' } });
+        store.setSubtitles('de', made.vtt);
+        const read = json(ops.run(store, 'read_transcript', { lang: 'de' }));
+        assert.deepEqual(read.cues.map((cue) => cue.text), ['Across the start.', 'A moment.', 'Fish & chips, AT&T, 3 < 4 and A --> B.', 'Second line here.', 'An hour in.', 'Across the end.']);
+        assert.deepEqual(json(ns.media.toVtt([], {})), { vtt: 'WEBVTT\n', cues: 0 });
+        assert.equal(ns.media.toVtt([{ start: 1, end: 2, text: 'No span' }]).vtt, 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nNo span\n');
+    });
+
+    test('languageCode: codes as they are, Whisper\'s names as their codes', () => {
+        const { ns } = environment();
+        assert.equal(ns.media.languageCode('de'), 'de');
+        assert.equal(ns.media.languageCode(' DE '), 'de');
+        assert.equal(ns.media.languageCode('yue'), 'yue');
+        assert.equal(ns.media.languageCode('german'), 'de');
+        assert.equal(ns.media.languageCode('German'), 'de');
+        assert.equal(ns.media.languageCode('haitian creole'), 'ht');
+        assert.equal(ns.media.languageCode('klingon'), null);
+        assert.equal(ns.media.languageCode(42), null);
+    });
+
+    test('transcribe: the request, progress as it comes, the result, however the stream is cut', async () => {
+        const { ns } = environment();
+        const events = [
+            ['progress', { stage: 'sending', elapsed: 0, sent: 0, total: 10 }],
+            ['progress', { stage: 'transcribing', elapsed: 10 }],
+            [null, { ignored: true }],
+            ['result', { language: 'de', duration: 5.5, offset: 2, segments: [{ start: 0, end: 1, text: 'Hallo' }] }]
+        ];
+        for (const size of [1, 3, 10, 1000]) {
+            const seen = [], progress = [];
+            const result = await ns.media.transcribe({
+                url: '/route', hypervideoId: 7, language: 'de', onProgress: (value) => progress.push(value),
+                fetch: (url, init) => { seen.push({ url, init }); return Promise.resolve(sse(events, size)); }
+            });
+            assert.deepEqual(json(result), { language: 'de', duration: 5.5, offset: 2, segments: [{ start: 0, end: 1, text: 'Hallo' }] }, 'cut at ' + size);
+            assert.deepEqual(json(progress), [events[0][1], events[1][1]]);
+            assert.equal(seen[0].url, '/route');
+            assert.equal(seen[0].init.method, 'POST');
+            assert.equal(seen[0].init.credentials, 'same-origin');
+            assert.equal(seen[0].init.headers['Content-Type'], 'application/json');
+            assert.deepEqual(JSON.parse(seen[0].init.body), { hypervideoId: '7', language: 'de' });
+        }
+        let body;
+        await ns.media.transcribe({ url: '/route', hypervideoId: '7', fetch: (url, init) => { body = JSON.parse(init.body); return Promise.resolve(sse([events[3]])); } });
+        assert.deepEqual(body, { hypervideoId: '7' }, 'no language: none sent');
+    });
+
+    test('transcribe: refusals and failures as codes, with the server\'s words', async () => {
+        const { ns } = environment();
+        const fails = async (fetch, signal) => {
+            try { await ns.media.transcribe({ url: '/route', hypervideoId: '1', fetch, signal }); } catch (e) { return { code: e.code, message: e.message, status: e.status, name: e.name }; }
+            assert.fail('it should fail');
+        };
+        const once = (response) => () => Promise.resolve(response);
+        assert.deepEqual(await fails(once(answer(422, { error: { code: 'noFile', message: 'Only uploaded video files can be transcribed.' } }))),
+            { code: 'noFile', message: 'Only uploaded video files can be transcribed.', status: 422, name: 'ConversationalUiMediaError' });
+        assert.equal((await fails(once(answer(401, { error: { code: 'login', message: 'Sign in to transcribe.' } })))).code, 'login');
+        assert.equal((await fails(once(answer(403, { error: { code: 'notAllowed', message: 'No.' } })))).code, 'notAllowed');
+        assert.equal((await fails(once(answer(413, { error: { code: 'tooLarge', message: 'Too large.' } })))).code, 'tooLarge');
+        assert.deepEqual(await fails(once(answer(400, { error: { message: 'The language is not a language code like en or de.' } }))),
+            { code: 'request', message: 'The language is not a language code like en or de.', status: 400, name: 'ConversationalUiMediaError' });
+        assert.deepEqual(await fails(once(answer(500, '<html>Internal</html>'))),
+            { code: 'service', message: 'The server answered with status 500', status: 500, name: 'ConversationalUiMediaError' });
+        assert.equal((await fails(once(sse([['progress', { stage: 'transcribing', elapsed: 0 }], ['error', { error: { code: 'timeout', message: 'Too long.' } }]])))).code, 'timeout');
+        assert.deepEqual(await fails(once(sse([['error', { error: { message: 'The speech server answered with status 500: The model is not loaded' } }]]))),
+            { code: 'service', message: 'The speech server answered with status 500: The model is not loaded', status: 502, name: 'ConversationalUiMediaError' });
+        assert.deepEqual(await fails(once(sse([['progress', { stage: 'sending', elapsed: 0 }]]))),
+            { code: 'service', message: 'The transcription broke off.', status: undefined, name: 'ConversationalUiMediaError' });
+        assert.equal((await fails(() => Promise.reject(new TypeError('Failed to fetch')))).code, 'network');
+        // A gateway's quota, from the first answer or from its job, keeps its period and renewal.
+        const quotaOf = async (fetch) => {
+            try { await ns.media.transcribe({ url: '/route', hypervideoId: '1', fetch }); } catch (e) { return [e.code, e.period, e.resetsAt]; }
+            assert.fail('it should fail');
+        };
+        const refusal = { error: { code: 'quota', message: 'This month\'s minutes are used up.', period: 'month', resetsAt: '2026-11-01T00:00:00+01:00' } };
+        assert.deepEqual(await quotaOf(once(sse([['progress', { stage: 'queued', elapsed: 0, position: 2 }], ['error', refusal]]))), ['quota', 'month', '2026-11-01T00:00:00+01:00']);
+        assert.deepEqual(await quotaOf(once(answer(429, refusal))), ['quota', 'month', '2026-11-01T00:00:00+01:00']);
+        const month = Object.assign(new Error('x'), { code: 'quota', period: 'month', resetsAt: '2026-11-01T00:00:00+01:00' });
+        assert.match(ns.ui.transcribeErrorText(ns.labels.en, month, 'en'), /^This month's transcription minutes are used up\. They renew on (November 1|1 November)\.$/);
+        assert.equal(ns.ui.transcribeErrorText(ns.labels.en, Object.assign(new Error('Used up.'), { code: 'quota' }), 'en'), 'The allowance for transcriptions is used up. Used up.');
+        const before = new AbortController();
+        before.abort();
+        let called = false;
+        assert.equal((await fails(() => { called = true; return Promise.resolve(sse([])); }, before.signal)).code, 'stopped');
+        assert.equal(called, false, 'not sent once stopped');
+        const during = new AbortController();
+        const pending = fails(hanging, during.signal);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        during.abort();
+        assert.equal((await pending).code, 'stopped');
+    });
+
+});
+
 const call  = (id, name, input) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(input) } });
 const calls = (...list) => ({ role: 'assistant', content: '', tool_calls: list });
 const says  = (text) => ({ role: 'assistant', content: text });
@@ -1660,6 +1828,78 @@ describe('agent.conversation', () => {
         assert.equal(adapter.requests.length, 4);
     });
 
+    // A tool of the panel's, as the panel's transcription is: it waits, then hands back subtitles to write.
+    function transcriber(ns, options = {}) {
+        const action = {
+            ran: [],
+            available: () => options.available !== false,
+            definition: { name: 'transcribe_video', description: 'Transcribe the video.', parameters: { type: 'object', properties: { language: { type: 'string' } } } },
+            run: options.run || (async (input, context) => {
+                action.ran.push({ input: json(input), transactions: json(options.store.transactions) });
+                context.progress({ stage: 'transcribing', elapsed: 10 });
+                return { result: { lang: 'de', cues: 1 }, write: { op: 'set_subtitles', input: { lang: 'de', vtt: 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHallo.\n' } } };
+            })
+        };
+        return action;
+    }
+
+    test('a tool of the panel: offered beside the operations, run before the transaction, its write in the turn\'s one transaction', async () => {
+        const { ns, ops } = environment(),
+              store   = lectureStore(ops),
+              action  = transcriber(ns, { store }),
+              adapter = scripted([calls(call('aaaaaaaa1', 'transcribe_video', { language: 'de' })), calls(call('aaaaaaaa2', 'read_transcript', { lang: 'de' })), says('Done.')]),
+              tools   = [],
+              turn    = await talk(ns, store, adapter, { actions: [action] }).send('Transcribe it', {
+                  tool: (entry) => tools.push([entry.name, entry.state, entry.progress ? entry.progress.stage : null])
+              });
+        assert.equal(turn.state, 'done', turn.error && turn.error.stack);
+        assert.equal(turn.changed, true);
+        assert.deepEqual(action.ran, [{ input: { language: 'de' }, transactions: [] }], 'it ran before any transaction was opened');
+        assert.deepEqual(store.transactions, ['Conversational UI: Transcribe it']);
+        assert.deepEqual(json(turn.changes.map((change) => [change.name, change.action])), [['set_subtitles', 'transcribe_video']]);
+        assert.equal(adapter.requests[0].tools.length, MANIFEST.operations.length + 1);
+        assert.deepEqual(json(adapter.requests[0].tools.at(-1)), { type: 'function', function: action.definition });
+        assert.deepEqual(JSON.parse(adapter.requests[1].messages.at(-1).content), { lang: 'de', cues: 1 });
+        assert.match(adapter.requests[2].messages.at(-1).content, /"text":"Hallo\."/);
+        assert.deepEqual(tools, [['transcribe_video', 'running', null], ['transcribe_video', 'running', 'transcribing'], ['transcribe_video', 'done', 'transcribing'],
+            ['read_transcript', 'running', null], ['read_transcript', 'done', null]]);
+        assert.equal(json(store.get('subtitles', 'de')).vtt, 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHallo.\n');
+    });
+
+    test('a tool of the panel that is not available now is not offered, and refused when called', async () => {
+        const { ns, ops } = environment(),
+              store   = lectureStore(ops),
+              action  = transcriber(ns, { store, available: false }),
+              adapter = scripted([calls(call('aaaaaaaa1', 'transcribe_video', {})), says('I cannot.')]),
+              turn    = await talk(ns, store, adapter, { actions: [action] }).send('Transcribe it');
+        assert.equal(turn.state, 'done');
+        assert.equal(adapter.requests[0].tools.length, MANIFEST.operations.length);
+        assert.equal(JSON.parse(adapter.requests[1].messages.at(-1).content).error.code, 'invalid');
+        assert.deepEqual(action.ran, []);
+    });
+
+    test('a tool of the panel failing, or stopped: the model hears of it; Stop changes nothing', async () => {
+        const { ns, ops } = environment(),
+              store   = lectureStore(ops),
+              failing = transcriber(ns, { store, run: () => Promise.reject(ns.media.mediaError('noFile', 'Only uploaded video files can be transcribed.')) }),
+              adapter = scripted([calls(call('aaaaaaaa1', 'transcribe_video', {})), says('It is a YouTube video.')]),
+              turn    = await talk(ns, store, adapter, { actions: [failing] }).send('Transcribe it');
+        assert.equal(turn.state, 'done');
+        assert.equal(turn.changed, false);
+        assert.deepEqual(JSON.parse(adapter.requests[1].messages.at(-1).content), { error: { code: 'noFile', message: 'Only uploaded video files can be transcribed.' } });
+        const waiting = transcriber(ns, { store, run: (input, context) => new Promise((resolve, reject) => {
+                  context.signal.addEventListener('abort', () => reject(ns.media.mediaError('stopped', 'Stopped')));
+              }) }),
+              chat    = talk(ns, store, scripted([calls(call('aaaaaaaa2', 'transcribe_video', {}))]), { actions: [waiting] }),
+              pending = chat.send('Transcribe it');
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        chat.stop();
+        const stopped = await pending;
+        assert.equal(stopped.state, 'stopped');
+        assert.equal(stopped.changed, false);
+        assert.deepEqual(store.transactions, []);
+    });
+
 });
 
 
@@ -1704,12 +1944,13 @@ describe('the panel', () => {
               ns    = context.FrameTrailConversationalUI,
               store = ns.ops.modelStore(readJSON(path.join(DATA, 'lecture.json')), { user: { id: '1', name: 'Ada', role: 'user' } });
         if ('user' in options) { store.getUser = () => options.user; }
+        if (options.prepare) { options.prepare(store); }
         const ft    = instance('en', { state: { storageMode: options.storageMode || 'download' }, status: options.status, edit: store }),
               ext   = registered[NAME](ft),
               container = context.document.createElement('div');
         if (options.key) { loaded.storage['frametrail-conversational-ui-key'] = options.key; }
         Object.assign(loaded.storage, options.stored || {});
-        ext.init({});
+        ext.init(options.settings || {});
         ext.slots.sidePanel.create(container, {});
         ext.onHypervideoChange('1');
         await tick();
@@ -1848,10 +2089,209 @@ describe('the panel', () => {
 
     test('names every tool and every error it can meet', () => {
         const ns = load().context.FrameTrailConversationalUI;
-        assert.deepEqual(Object.keys(ns.ui.TOOL_LABELS).sort(), MANIFEST.operations.map((op) => op.name).sort());
-        for (const key of [...Object.values(ns.ui.TOOL_LABELS), ...Object.values(ns.ui.ERROR_LABELS), ...Object.values(ns.ui.UNAVAILABLE_LABELS)]) {
+        assert.deepEqual(Object.keys(ns.ui.TOOL_LABELS).sort(), [...MANIFEST.operations.map((op) => op.name), ns.ui.TRANSCRIBE_TOOL.name].sort());
+        for (const key of [...Object.values(ns.ui.TOOL_LABELS), ...Object.values(ns.ui.ERROR_LABELS), ...Object.values(ns.ui.UNAVAILABLE_LABELS),
+                           ...Object.values(ns.ui.TRANSCRIBE_ERROR_LABELS), ...Object.values(ns.ui.TRANSCRIBE_REASON_LABELS)]) {
             assert.ok(ns.labels.en[key], key);
         }
+    });
+
+    // Transcription.
+
+    const speech = (more, transcription = { available: true }) => capabilities(Object.assign({ relay: false, ownKey: true, transcription }, more));
+    const ROUTE  = '_server/extension.php?e=conversational-ui&r=transcribe';
+    const heard  = { language: 'de', duration: 600, offset: 0, segments: [{ start: 1, end: 2, text: ' Guten Tag.' }, { start: 2, end: 4, text: ' Heute: Zellen.' }] };
+    const vttOf  = 'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nGuten Tag.\n\n00:00:02.000 --> 00:00:04.000\nHeute: Zellen.\n';
+    const idle   = async (panel) => { while (panel.root.classList.contains('busy')) { await tick(); } };
+    const entry  = (panel) => panel.root.querySelectorAll('div.conversationalUiTranscription').at(-1);
+
+    test('transcription: the bar\'s button where the server has it, the language, progress, the subtitles as one undo step, and the model is told', async () => {
+        const script = [says('Gern.')];
+        const panel = await opened({ storageMode: 'server', status: speech({}), key: 'test-key', fetch: (url, init) => {
+            if (url === ROUTE) { return Promise.resolve(sse([['progress', { stage: 'extracting', elapsed: 0 }], ['progress', { stage: 'transcribing', elapsed: 0 }], ['result', heard]], 9)); }
+            if (/\/models$/.test(url)) { return Promise.resolve(answer(200, { data: [] })); }
+            return Promise.resolve(completion(script.shift()));
+        } });
+        const button = panel.root.querySelector('.conversationalUiTranscribe');
+        assert.equal(button.hidden, false);
+        assert.equal(button.getAttribute('aria-label'), panel.labels.ConversationalUiTranscribe);
+        button.click();
+        const view = entry(panel);
+        assert.equal(view.querySelector('.conversationalUiUser').textContent, panel.labels.ConversationalUiTranscribe);
+        const language = view.querySelector('select');
+        assert.equal(language.children[0].textContent, panel.labels.ConversationalUiTranscribeAutomatic);
+        assert.ok(language.children.some((option) => option.value === 'de' && option.textContent === 'German'), 'languages by their names');
+        language.value = 'de';
+        view.querySelector('.conversationalUiTranscribeStart').click();
+        assert.ok(panel.root.classList.contains('busy'), 'busy while it runs');
+        assert.equal(panel.root.querySelector('.conversationalUiSend').textContent, panel.labels.ConversationalUiStop);
+        await idle(panel);
+        const request = panel.fetches.find((f) => f.url === ROUTE);
+        assert.deepEqual(request.body, { hypervideoId: '1', language: 'de' });
+        assert.equal(json(panel.store.get('subtitles', 'de')).vtt, vttOf);
+        assert.equal(panel.ft.UndoManager.getUndoDescription(), 'Assistant: Transcription (German)');
+        assert.equal(view.querySelector('p.conversationalUiState').textContent,
+            panel.labels.ConversationalUiTranscribeDone.replace('{count}', '2').replace('{language}', 'German'));
+        const undo = view.querySelector('.conversationalUiUndo');
+        assert.equal(undo.textContent, panel.labels.ConversationalUiUndoTranscription);
+        undo.click();
+        assert.deepEqual(panel.ft.UndoManager.redoStack, ['Assistant: Transcription (German)']);
+        assert.equal(undo.textContent, panel.labels.ConversationalUiRedoTranscription);
+        view.querySelector('.conversationalUiExample').click();
+        const input = panel.root.querySelector('textarea');
+        assert.equal(input.value, panel.labels.ConversationalUiExampleChaptersAll);
+        input.dispatch('keydown', { key: 'Enter', shiftKey: false, isComposing: false });
+        await idle(panel);
+        const chat = panel.fetches.find((f) => /chat\/completions$/.test(f.url));
+        const asked = chat.body.messages.at(-1).content;
+        assert.match(asked, /^\[The user transcribed the video: subtitles in de \(2 cues\) are there now; read_transcript reads them\.\]\n\[The user undid the transcription/);
+        assert.match(asked, /\nAdd a chapter at each topic change$/);
+        assert.ok(chat.body.tools.some((tool) => tool.function.name === 'transcribe_video'), 'the model has the tool here');
+    });
+
+    test('transcription: not offered without a server that has it; why not, for this video; the intro', async () => {
+        const noSubtitles = (store) => store.setSubtitles('en', null);
+        const local = await opened({ storageMode: 'local', prepare: noSubtitles });
+        assert.equal(local.root.querySelector('.conversationalUiTranscribe').hidden, true);
+        const hint = local.root.querySelector('.conversationalUiTranscriptHint');
+        assert.equal(hint.hidden, false);
+        assert.equal(hint.textContent, local.labels.ConversationalUiTranscriptMissing + ' ' + local.labels.ConversationalUiTranscribeNeedsServer);
+        const subtitled = await opened({ storageMode: 'local' });
+        assert.equal(subtitled.root.querySelector('.conversationalUiTranscriptHint').hidden, true, 'not when there are subtitles');
+        const without = await opened({ storageMode: 'server', status: speech({}, false), prepare: noSubtitles });
+        assert.equal(without.root.querySelector('.conversationalUiTranscribe').hidden, true, 'not where the server has none');
+        assert.equal(without.root.querySelector('.conversationalUiTranscriptHint').hidden, true);
+        const broken = await opened({ storageMode: 'server', status: speech({}, { available: false, problem: 'curl' }) });
+        assert.equal(broken.root.querySelector('.conversationalUiTranscribe').hidden, true, 'not where it cannot work');
+
+        const offered = await opened({ storageMode: 'server', status: speech({}), prepare: noSubtitles });
+        const intro = offered.root.querySelector('.conversationalUiTranscriptHint');
+        assert.equal(intro.hidden, false);
+        intro.querySelector('button').click();
+        assert.ok(entry(offered).querySelector('select'), 'the intro\'s button opens it too');
+        entry(offered).querySelector('.conversationalUiTranscribeCancel').click();
+        assert.equal(entry(offered), undefined, 'Cancel takes it away');
+
+        const reasons = [
+            [(store) => { store.getInfo = () => Object.assign(json(offered.store.getInfo()), { video: 'https://www.youtube.com/watch?v=abc' }); }, 'ConversationalUiTranscribeNotFile'],
+            [(store) => { store.getInfo = () => Object.assign(json(offered.store.getInfo()), { video: '' }); }, 'ConversationalUiTranscribeNoVideo'],
+            [(store) => { store.permission = () => ({ allowed: false, code: 'notAllowed', message: 'Only an admin…' }); }, 'ConversationalUiTranscribePermission']
+        ];
+        for (const [prepare, label] of reasons) {
+            const panel = await opened({ storageMode: 'server', status: speech({}), prepare });
+            panel.root.querySelector('.conversationalUiTranscribe').click();
+            assert.equal(entry(panel).querySelector('p.message').textContent, panel.labels[label]);
+            assert.equal(entry(panel).querySelector('select'), null);
+            entry(panel).querySelector('.conversationalUiTranscribeClose').click();
+            assert.equal(entry(panel), undefined);
+        }
+        const guest = await opened({ storageMode: 'server', status: speech({}), user: { id: 'guest_ada-1', name: 'Ada', role: 'user', guest: true } });
+        guest.root.querySelector('.conversationalUiTranscribe').click();
+        assert.equal(entry(guest).querySelector('p.message').textContent, guest.labels.ConversationalUiTranscribeErrorLogin);
+    });
+
+    test('transcription: failures in words, no speech, and Stop', async () => {
+        let route = () => Promise.resolve(answer(422, { error: { code: 'noFile', message: 'Only uploaded video files can be transcribed, not videos from other sites or streams.' } }));
+        const panel = await opened({ storageMode: 'server', status: speech({}), fetch: (url, init) => route(url, init) });
+        const start = () => {
+            panel.root.querySelector('.conversationalUiTranscribe').click();
+            entry(panel).querySelector('.conversationalUiTranscribeStart').click();
+        };
+        start();
+        await idle(panel);
+        assert.equal(entry(panel).querySelector('p.error').textContent,
+            'The transcription failed: Only uploaded video files can be transcribed, not videos from other sites or streams.');
+        route = () => Promise.resolve(answer(413, { error: { code: 'tooLarge', message: 'The video (120 MB) is larger than the 100 MB that may be sent.' } }));
+        start();
+        await idle(panel);
+        assert.equal(entry(panel).querySelector('p.error').textContent,
+            'The video is too large to be transcribed here. The video (120 MB) is larger than the 100 MB that may be sent.');
+        route = () => Promise.resolve(sse([['result', { language: 'de', duration: 5, offset: 0, segments: [{ start: 0, end: 5, text: ' [BLANK_AUDIO]' }] }]]));
+        start();
+        await idle(panel);
+        assert.equal(entry(panel).querySelector('p.conversationalUiState').textContent, panel.labels.ConversationalUiTranscribeNoSpeech);
+        assert.equal(entry(panel).querySelector('.conversationalUiUndo'), null);
+        route = hanging;
+        start();
+        await tick();
+        panel.root.querySelector('.conversationalUiSend').click();
+        await idle(panel);
+        assert.equal(entry(panel).querySelector('p.conversationalUiState').textContent, panel.labels.ConversationalUiStopped);
+        assert.deepEqual(panel.ft.UndoManager.undoStack, [], 'nothing changed');
+        assert.equal(panel.store.get('subtitles', 'de'), null);
+    });
+
+    test('transcription behind a platform\'s gateway: its place in line, and a month\'s allowance used up with the platform\'s link', async () => {
+        let route = () => Promise.resolve(sse([['progress', { stage: 'queued', elapsed: 0, position: 3 }],
+            ['error', { error: { code: 'quota', message: 'This month\'s minutes are used up.', period: 'month', resetsAt: '2026-11-01T00:00:00+01:00' } }]]));
+        const panel = await opened({ storageMode: 'server', status: speech({}), settings: { label: 'Linked.Video', manageUrl: 'https://linked.video/manage/my-plan' },
+            fetch: (url, init) => route(url, init) });
+        panel.root.querySelector('.conversationalUiTranscribe').click();
+        entry(panel).querySelector('.conversationalUiTranscribeStart').click();
+        await idle(panel);
+        const error = entry(panel).querySelector('p.error');
+        assert.match(error.textContent, /^This month's transcription minutes are used up\. They renew on (November 1|1 November)\. Manage$/);
+        const link = error.querySelector('a');
+        assert.equal(link.href, 'https://linked.video/manage/my-plan');
+        assert.equal(link.textContent, panel.labels.ConversationalUiSettingsManage);
+        // Other failures carry no link.
+        route = () => Promise.resolve(answer(413, { error: { code: 'tooLarge', message: 'Too large.' } }));
+        panel.root.querySelector('.conversationalUiTranscribe').click();
+        entry(panel).querySelector('.conversationalUiTranscribeStart').click();
+        await idle(panel);
+        assert.equal(entry(panel).querySelector('p.error').querySelector('a'), null);
+        // The place in line, in words.
+        assert.equal(panel.ns.labels.en.ConversationalUiTranscribeQueued.replace('{position}', '3').replace('{time}', '0:00'),
+            'Waiting for the speech recognition, number 3 in line (0:00)');
+    });
+
+    test('transcription: the model\'s tool, where the server has it; its progress in the tool line, its subtitles in the turn\'s undo step', async () => {
+        const script = [calls(call('aaaaaaaa1', 'transcribe_video', {})), says('Transkribiert.')];
+        const panel = await opened({ storageMode: 'server', status: speech({}), key: 'test-key', fetch: (url, init) => {
+            if (url === ROUTE) { return Promise.resolve(sse([['progress', { stage: 'sending', elapsed: 0, sent: 5, total: 10 }], ['result', heard]])); }
+            if (/\/models$/.test(url)) { return Promise.resolve(answer(200, { data: [] })); }
+            return Promise.resolve(completion(script.shift()));
+        } });
+        await tick();
+        const input = panel.root.querySelector('textarea');
+        input.value = 'Transkribiere das Video';
+        input.dispatch('keydown', { key: 'Enter', shiftKey: false, isComposing: false });
+        await idle(panel);
+        assert.deepEqual(panel.fetches.find((f) => f.url === ROUTE).body, { hypervideoId: '1' });
+        const turn = panel.root.querySelector('.conversationalUiTurn');
+        assert.equal(turn.querySelector('summary').textContent, 'Transcribed the video: de, 2 cues');
+        assert.equal(json(panel.store.get('subtitles', 'de')).vtt, vttOf);
+        assert.equal(panel.ft.UndoManager.getUndoDescription(), 'Assistant: Transkribiere das Video');
+        const second = panel.fetches.filter((f) => /chat\/completions$/.test(f.url))[1];
+        const result = JSON.parse(second.body.messages.at(-1).content);
+        assert.deepEqual(result, { lang: 'de', cues: 2, duration: 600, replaced: false, note: 'The subtitles are set; read_transcript and find_in_transcript read them. Go on with the rest of the user\'s request.' });
+        assert.equal(panel.ns.ui.toolText(panel.labels, { name: 'transcribe_video', state: 'done', input: {}, result: { cues: 0 } }), panel.labels.ConversationalUiTranscribeNoSpeech);
+
+        const offline = [says('No.')];
+        const elsewhere = await opened({ storageMode: 'download', key: 'test-key', fetch: (url) => (/\/models$/.test(url) ? Promise.resolve(answer(200, { data: [] })) : Promise.resolve(completion(offline.shift()))) });
+        await tick();
+        const box = elsewhere.root.querySelector('textarea');
+        box.value = 'Transcribe the video';
+        box.dispatch('keydown', { key: 'Enter', shiftKey: false, isComposing: false });
+        await idle(elsewhere);
+        const asked = elsewhere.fetches.find((f) => /chat\/completions$/.test(f.url));
+        assert.ok(!asked.body.tools.some((tool) => tool.function.name === 'transcribe_video'), 'no tool without a server that transcribes');
+    });
+
+    test('administrators see how transcription is set up', async () => {
+        const admin = { id: '1', name: 'Ada', role: 'admin', guest: false };
+        const last  = async (transcription) => {
+            const panel = await opened({ storageMode: 'server', status: speech({}, transcription), user: admin }),
+                  info  = panel.root.querySelector('.conversationalUiServerInfo');
+            return info.children.at(-1).textContent;
+        };
+        assert.equal(await last({ available: true, audio: 'ffmpeg', maxBytes: 104857600 }),
+            'Transcription is on: ffmpeg takes the sound out of a video, which is sent to the speech recognition (up to 100 MB).');
+        assert.equal(await last({ available: true, audio: 'file', maxBytes: 26214400 }),
+            'Transcription is on, without ffmpeg: videos are sent to the speech recognition as they are, up to 25 MB.');
+        assert.equal(await last({ available: false, problem: 'curl' }), 'Transcription is set up but cannot work: PHP\'s curl extension is missing on the server.');
+        assert.equal(await last({ available: false, problem: 'baseUrl' }), 'Transcription is set up but cannot work: its baseUrl is not an http(s) address.');
+        assert.match(await last(false), /^Transcription is off\. To switch it on, add a transcription block/);
     });
 
 });

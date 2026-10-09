@@ -21,6 +21,9 @@
  *
  * - Action conversationalUiChat and route relay: the model relay (relay.php),
  *   Mistral's Chat Completions API through this server, which holds the key.
+ * - Route transcribe: the open hypervideo's video transcribed by a
+ *   self-hosted Whisper server (transcribe.php), its progress and result
+ *   streamed to the panel.
  *
  * The configuration is the array _data/.auth/conversational-ui.php returns
  * (ftConversationalUiConfig() reads it); see the README.
@@ -67,7 +70,9 @@ function ftConversationalUiVersion() {
  * - timeout: seconds one request to the model may take (10 to 3600, default 300);
  * - instance: what the relay sends a gateway as X-FrameTrail-Instance, or null
  *   for the installation's URL;
- * - allowOwnKey: whether users may use their own key directly from the browser.
+ * - allowOwnKey: whether users may use their own key directly from the browser;
+ * - transcription: the Whisper server (ftConversationalUiTranscriptionConfig()),
+ *   or null: no transcription.
  *
  * @method ftConversationalUiConfig
  * @return Array
@@ -115,7 +120,74 @@ function ftConversationalUiConfig() {
         "requestsPerDay" => $limit,
         "timeout"        => $timeout,
         "instance"       => $text("instance"),
-        "allowOwnKey"    => isset($secrets["allowOwnKey"]) && $secrets["allowOwnKey"] === true
+        "allowOwnKey"    => isset($secrets["allowOwnKey"]) && $secrets["allowOwnKey"] === true,
+        "transcription"  => ftConversationalUiTranscriptionConfig($secrets)
+    );
+
+}
+
+
+/**
+ * I return the configuration of transcription, the "transcription" array of
+ * _data/.auth/conversational-ui.php with every key checked and its default
+ * filled in, or null when there is none (no transcription: no button in the
+ * panel, no tool for the model):
+ *
+ * - baseUrl: the speech server's OpenAI-compatible API (requests go to
+ *   {baseUrl}/audio/transcriptions), without a trailing slash; baseUrlValid:
+ *   http(s) and a host;
+ * - apiKey: sent as a bearer token, or null;
+ * - model: sent as "model" (default whisper-1);
+ * - maxBytes: the most that is sent, the sound taken out of the video or the
+ *   video itself (default 100 MB);
+ * - timeout: seconds a transcription may take, all in all (60 to 7200,
+ *   default 1800);
+ * - ffmpeg: the path of ffmpeg, false never to use it, or null to look for it
+ *   as FrameTrail does;
+ * - audioFormat: what the sound is sent as: mp3 (default), flac or wav.
+ *
+ * @method ftConversationalUiTranscriptionConfig
+ * @param {Array} $secrets  the array the secrets file returns
+ * @return Array|null
+ */
+function ftConversationalUiTranscriptionConfig($secrets) {
+
+    if (!isset($secrets["transcription"]) || !is_array($secrets["transcription"])) {
+        return null;
+    }
+
+    $settings = $secrets["transcription"];
+
+    $text = function($key) use ($settings) {
+        return (isset($settings[$key]) && is_string($settings[$key]) && trim($settings[$key]) !== "") ? trim($settings[$key]) : null;
+    };
+    $number = function($key) use ($settings) {
+        return (isset($settings[$key]) && (is_int($settings[$key]) || is_float($settings[$key]))) ? $settings[$key] : null;
+    };
+
+    $baseUrl = $text("baseUrl");
+    $baseUrl = ($baseUrl !== null) ? rtrim($baseUrl, "/") : null;
+
+    $maxBytes = $number("maxBytes");
+    $timeout  = $number("timeout");
+    $format   = $text("audioFormat");
+
+    $ffmpeg = null;
+    if (array_key_exists("ffmpeg", $settings) && $settings["ffmpeg"] === false) {
+        $ffmpeg = false;
+    } elseif ($text("ffmpeg") !== null) {
+        $ffmpeg = $text("ffmpeg");
+    }
+
+    return array(
+        "baseUrl"      => $baseUrl,
+        "baseUrlValid" => $baseUrl !== null && preg_match('#^https?://[^/\s?\#@]+(/[^\s?\#]*)?$#i', $baseUrl) === 1,
+        "apiKey"       => $text("apiKey"),
+        "model"        => ($text("model") !== null) ? $text("model") : "whisper-1",
+        "maxBytes"     => ($maxBytes !== null && $maxBytes >= 1024) ? (int)floor($maxBytes) : 100 * 1024 * 1024,
+        "timeout"      => ($timeout !== null) ? (int)max(60, min(7200, $timeout)) : 1800,
+        "ffmpeg"       => $ffmpeg,
+        "audioFormat"  => in_array($format, array("mp3", "flac", "wav"), true) ? $format : "mp3"
     );
 
 }
@@ -128,9 +200,13 @@ function ftConversationalUiConfig() {
  *   baseUrl, PHP's curl extension); then also models (the allowed ones),
  *   defaultModel and requestsPerDay (null: no limit);
  * - ownKey: users may use their own key directly from the browser (allowOwnKey);
- * - problem: why a configured relay cannot work: "curl" or "baseUrl".
+ * - problem: why a configured relay cannot work: "curl" or "baseUrl";
+ * - transcription: false when it is not set up, else { available, problem?
+ *   ("curl", "baseUrl") }, and for administrators also audio ("ffmpeg": the
+ *   sound is taken out of the video, "file": the video is sent as it is) and
+ *   maxBytes.
  *
- * None of it is a secret: the key stays here.
+ * None of it is a secret: the keys stay here.
  *
  * @method ftConversationalUiCapabilities
  * @return Array
@@ -151,6 +227,27 @@ function ftConversationalUiCapabilities() {
         $capabilities["requestsPerDay"] = $config["requestsPerDay"];
     } elseif ($config["apiKey"] !== null) {
         $capabilities["problem"] = $curl ? "baseUrl" : "curl";
+    }
+
+    $transcription = $config["transcription"];
+
+    if ($transcription === null) {
+        $capabilities["transcription"] = false;
+        return $capabilities;
+    }
+
+    $capabilities["transcription"] = array("available" => $transcription["baseUrlValid"] && $curl);
+    if (!$capabilities["transcription"]["available"]) {
+        $capabilities["transcription"]["problem"] = $curl ? "baseUrl" : "curl";
+    }
+
+    // Looking for ffmpeg runs it, so only for those who see the answer: administrators.
+    $login = userCheckLogin();
+    if (is_array($login) && isset($login["code"], $login["response"]["role"]) && $login["code"] == 1
+        && $login["response"]["role"] === "admin" && !ftIsBearerRequest()) {
+        require_once __DIR__ . "/transcribe.php";
+        $capabilities["transcription"]["audio"]    = (ftConversationalUiTranscribeFfmpeg($transcription) !== null) ? "ffmpeg" : "file";
+        $capabilities["transcription"]["maxBytes"] = $transcription["maxBytes"];
     }
 
     return $capabilities;
@@ -212,16 +309,34 @@ function ftConversationalUiRelayRoute($ext) {
 }
 
 
+/**
+ * Route transcribe: the open hypervideo's video transcribed, its progress and
+ * result streamed (transcribe.php).
+ *
+ * @method ftConversationalUiTranscribeRoute
+ * @param {Array} $ext
+ * @return null
+ */
+function ftConversationalUiTranscribeRoute($ext) {
+
+    require_once __DIR__ . "/transcribe.php";
+
+    return ftConversationalUiTranscribe($ext);
+
+}
+
+
 // "requires" lists only what every part needs: a missing requirement takes
 // away all actions and routes of the extension. A feature that needs more
-// (curl for the model relay) checks for it when it is called.
+// (curl for the relay and transcription) checks for it when it is called.
 return array(
     "actions"  => array(
         "conversationalUiStatus" => "ftConversationalUiStatus",
         "conversationalUiChat"   => "ftConversationalUiChatAction"
     ),
     "routes"   => array(
-        "relay" => "ftConversationalUiRelayRoute"
+        "relay"      => "ftConversationalUiRelayRoute",
+        "transcribe" => "ftConversationalUiTranscribeRoute"
     ),
     "requires" => array("json")
 );

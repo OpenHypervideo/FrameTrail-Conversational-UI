@@ -69,7 +69,13 @@
                 }).join('; ')
                 : (typeof json.detail === 'string') ? json.detail
                 : String(text).slice(0, 500);
-        return { message: message, code: (error && typeof error.code === 'string') ? error.code : undefined };
+        return {
+            message:  message,
+            code:     (error && typeof error.code === 'string') ? error.code : undefined,
+            // A gateway's quota refusal says for how long and until when.
+            period:   (error && typeof error.period === 'string') ? error.period : undefined,
+            resetsAt: (error && typeof error.resetsAt === 'string') ? error.resetsAt : undefined
+        };
     }
 
     /**
@@ -88,6 +94,8 @@
 
             if (detail.code && RELAY_CODES.indexOf(detail.code) >= 0) {
                 if (status === 429) { extra.retryAfter = retryAfter(response.headers && response.headers.get('Retry-After')); }
+                if (detail.period) { extra.period = detail.period; }
+                if (detail.resetsAt) { extra.resetsAt = detail.resetsAt; }
                 throw chatError(detail.code, detail.message, extra);
             }
 

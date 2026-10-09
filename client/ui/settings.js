@@ -3,8 +3,8 @@
  * how the assistant reaches Mistral (and, where the server offers both, the
  * user's choice between the relay and their own key), the user's key (direct
  * mode), the model, a connection test, and for administrators what the
- * server has set up. The panel (ui/panel.js) owns the values; this only shows
- * them and reports changes.
+ * server has set up (the relay, own keys, transcription). The panel
+ * (ui/panel.js) owns the values; this only shows them and reports changes.
  *
  *     var form = ui.settings({
  *         labels:     Localization.labels,
@@ -157,6 +157,11 @@
             });
         }
 
+        function megabytes(bytes) {
+            var mb = bytes / 1048576;
+            return (mb >= 10 ? Math.round(mb) : Math.round(mb * 10) / 10) + ' MB';
+        }
+
         function format(template, values) {
             return String(template).replace(/\{([a-zA-Z]+)\}/g, function(match, name) {
                 return (values[name] !== undefined && values[name] !== null) ? String(values[name]) : '';
@@ -191,6 +196,18 @@
             }
 
             lines.push(labels[server.ownKey === true ? 'ConversationalUiServerOwnKeyOn' : 'ConversationalUiServerOwnKeyOff']);
+
+            var speech = server.transcription;
+            if (speech && speech.available === true) {
+                lines.push(format(labels[speech.audio === 'ffmpeg' ? 'ConversationalUiServerTranscriptionFfmpeg' : 'ConversationalUiServerTranscriptionFile'],
+                    { size: (typeof speech.maxBytes === 'number') ? megabytes(speech.maxBytes) : '' }));
+            } else if (speech && speech.problem === 'curl') {
+                lines.push(labels['ConversationalUiServerTranscriptionCurl']);
+            } else if (speech && speech.problem === 'baseUrl') {
+                lines.push(labels['ConversationalUiServerTranscriptionBaseUrl']);
+            } else if (speech === false) {
+                lines.push(labels['ConversationalUiServerTranscriptionOff']);
+            }
 
             lines.forEach(function(line, index) {
                 var p = element('p', 'conversationalUiHint', line);

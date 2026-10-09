@@ -37,23 +37,58 @@ if (!function_exists("ftExtensionStorage")) {
 /**
  * I make a failure of the relay: an HTTP status, the words for it, and, for
  * the relay's own refusals, a code the chat panel puts into words (login,
- * notAllowed, quota, notConfigured).
+ * notAllowed, quota, notConfigured). $extra carries what a gateway's quota
+ * refusal adds to its error (period, resetsAt), passed on as it came.
  *
  * @method ftConversationalUiRelayFailure
  * @param {Number} $status
  * @param {String} $message
  * @param {String|null} $code
  * @param {Number|null} $retryAfter  seconds
+ * @param {Array} $extra
  * @return Array
  */
-function ftConversationalUiRelayFailure($status, $message, $code = null, $retryAfter = null) {
+function ftConversationalUiRelayFailure($status, $message, $code = null, $retryAfter = null, $extra = array()) {
 
     return array(
         "failure"    => true,
         "status"     => $status,
         "message"    => $message,
         "code"       => $code,
-        "retryAfter" => $retryAfter
+        "retryAfter" => $retryAfter,
+        "extra"      => $extra
+    );
+
+}
+
+
+/**
+ * I return the error of a body that refuses in the relay's own words — a
+ * gateway's ({ error: { code: login | quota | notConfigured | notAllowed,
+ * message, period?, resetsAt? } }) — or null.
+ *
+ * @method ftConversationalUiRelayCodedError
+ * @param {mixed} $json  the decoded body
+ * @return Array|null  array("code", "message", "extra" => period / resetsAt when strings)
+ */
+function ftConversationalUiRelayCodedError($json) {
+
+    if (!is_array($json) || !isset($json["error"]) || !is_array($json["error"]) || !isset($json["error"]["code"])
+        || !in_array($json["error"]["code"], array("login", "quota", "notConfigured", "notAllowed"), true)) {
+        return null;
+    }
+
+    $extra = array();
+    foreach (array("period", "resetsAt") as $key) {
+        if (isset($json["error"][$key]) && is_string($json["error"][$key]) && strlen($json["error"][$key]) <= 64) {
+            $extra[$key] = $json["error"][$key];
+        }
+    }
+
+    return array(
+        "code"    => $json["error"]["code"],
+        "message" => (isset($json["error"]["message"]) && is_string($json["error"]["message"])) ? $json["error"]["message"] : $json["error"]["code"],
+        "extra"   => $extra
     );
 
 }
@@ -71,6 +106,9 @@ function ftConversationalUiRelayFailureBody($failure) {
     $error = array("message" => $failure["message"]);
     if ($failure["code"] !== null) {
         $error = array("code" => $failure["code"], "message" => $failure["message"]);
+    }
+    if (isset($failure["extra"]) && is_array($failure["extra"])) {
+        $error = array_merge($error, $failure["extra"]);
     }
 
     return array("error" => $error);
@@ -420,8 +458,7 @@ function ftConversationalUiRelayUpstreamFailure($result, $config, $model) {
     $retryAfter = (isset($result["headers"]["retry-after"]) && preg_match('/^\d+$/', $result["headers"]["retry-after"]))
         ? (int)$result["headers"]["retry-after"] : null;
 
-    $relayCode = is_array($json) && isset($json["error"]) && is_array($json["error"]) && isset($json["error"]["code"])
-        && in_array($json["error"]["code"], array("login", "quota", "notConfigured", "notAllowed"), true);
+    $relayCode = ftConversationalUiRelayCodedError($json) !== null;
 
     if (!$relayCode && ($status === 401 || $status === 403)) {
         return ftConversationalUiRelayFailure(502, "The model service refused the server's key.", "notConfigured");
@@ -511,6 +548,53 @@ function ftConversationalUiRelaySendFailure($failure) {
 
 
 /**
+ * I refuse a request a route of the add-on does not take: only POST, and only
+ * JSON — a page on another origin cannot send JSON without asking first, and
+ * FrameTrail answers no such question.
+ *
+ * @method ftConversationalUiRouteRefusal
+ * @return Array|null  a failure, or null
+ */
+function ftConversationalUiRouteRefusal() {
+
+    if (!isset($_SERVER["REQUEST_METHOD"]) || $_SERVER["REQUEST_METHOD"] !== "POST") {
+        return ftConversationalUiRelayFailure(405, "This route takes POST requests.");
+    }
+
+    $type = isset($_SERVER["CONTENT_TYPE"]) ? $_SERVER["CONTENT_TYPE"] : (isset($_SERVER["HTTP_CONTENT_TYPE"]) ? $_SERVER["HTTP_CONTENT_TYPE"] : "");
+    if (!preg_match('#^\s*application/json\s*(;|$)#i', $type)) {
+        return ftConversationalUiRelayFailure(415, "This route takes JSON (Content-Type: application/json).");
+    }
+
+    return null;
+
+}
+
+
+/**
+ * I prepare a long answer that goes out piece by piece: every piece as it
+ * comes (no output buffer, no compression), on after the browser has gone
+ * (the caller checks connection_aborted() and stops), for at most $seconds.
+ *
+ * @method ftConversationalUiStreamOpen
+ * @param {Number} $seconds
+ */
+function ftConversationalUiStreamOpen($seconds) {
+
+    ignore_user_abort(true);
+    @set_time_limit($seconds);
+    @ini_set("zlib.output_compression", "0");
+    if (function_exists("apache_setenv")) {
+        @apache_setenv("no-gzip", "1");
+    }
+    while (ob_get_level() > 0) {
+        @ob_end_clean();
+    }
+
+}
+
+
+/**
  * Route relay: one request to the model, its answer streamed through as it
  * arrives (server-sent events). See the top of this file.
  *
@@ -520,16 +604,9 @@ function ftConversationalUiRelaySendFailure($failure) {
  */
 function ftConversationalUiRelay($ext) {
 
-    if (!isset($_SERVER["REQUEST_METHOD"]) || $_SERVER["REQUEST_METHOD"] !== "POST") {
-        ftConversationalUiRelaySendFailure(ftConversationalUiRelayFailure(405, "The relay takes POST requests."));
-        return null;
-    }
-
-    // JSON only: a page on another origin cannot send it without asking first,
-    // and FrameTrail answers no such question.
-    $type = isset($_SERVER["CONTENT_TYPE"]) ? $_SERVER["CONTENT_TYPE"] : (isset($_SERVER["HTTP_CONTENT_TYPE"]) ? $_SERVER["HTTP_CONTENT_TYPE"] : "");
-    if (!preg_match('#^\s*application/json\s*(;|$)#i', $type)) {
-        ftConversationalUiRelaySendFailure(ftConversationalUiRelayFailure(415, "The relay takes JSON (Content-Type: application/json)."));
+    $refused = ftConversationalUiRouteRefusal();
+    if ($refused !== null) {
+        ftConversationalUiRelaySendFailure($refused);
         return null;
     }
 
@@ -543,17 +620,8 @@ function ftConversationalUiRelay($ext) {
 
     $config = $admitted["config"];
 
-    // Every piece goes out as it comes: no output buffer, no compression.
     // Stop in the panel ends the request to the model at the next piece.
-    ignore_user_abort(true);
-    @set_time_limit($config["timeout"] + 30);
-    @ini_set("zlib.output_compression", "0");
-    if (function_exists("apache_setenv")) {
-        @apache_setenv("no-gzip", "1");
-    }
-    while (ob_get_level() > 0) {
-        @ob_end_clean();
-    }
+    ftConversationalUiStreamOpen($config["timeout"] + 30);
 
     $started = false;
 

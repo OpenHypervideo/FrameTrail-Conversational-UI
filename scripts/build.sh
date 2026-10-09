@@ -66,6 +66,9 @@ JS_FILES=(
     "models/mistral.js"
     "models/relay.js"
 
+    # Transcription
+    "media/transcribe.js"
+
     # The conversation
     "agent/tools.js"
     "agent/agent.js"
