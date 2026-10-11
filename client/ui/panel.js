@@ -18,10 +18,12 @@
  *   becomes "Redo this turn" once undone.
  * - The key is kept in memory, or in localStorage when the user chooses to
  *   remember it; the model is remembered in localStorage.
- * - **Transcription** (server mode, where the server has it set up): the bar's
- *   button, and the model's tool transcribe_video, have the server transcribe
- *   the video (media/transcribe.js); the result becomes subtitles through the
- *   edit API, one undo step.
+ * - **Transcription** (server mode, where the server has it set up): the
+ *   server transcribes the video (media/transcribe.js) for the model's tool
+ *   transcribe_video, whose subtitles are written in the turn's undo step, and
+ *   for FrameTrail's Transcripts edit mode, whose Generate button is the
+ *   extension's transcriber (module.js → transcriber()). The bar's button and
+ *   the intro's offer switch to that mode.
  */
 
 (function(ConversationalUI) {
@@ -302,8 +304,7 @@
             descriptions = {},
             direct       = null,
             relay        = null,
-            transcribing = null,
-            fieldIds     = 0,
+            transcribing = false,    // the server is transcribing for this panel (the tool or the Transcripts mode)
             busy         = false;
 
         var remembered = storageGet(STORAGE_KEY);
@@ -563,7 +564,7 @@
             root.classList.toggle('busy', busy);
 
             var offered = session ? transcription() : null;
-            transcribeButton.hidden = !offered;
+            transcribeButton.hidden = !offered || !transcriptsMode();
             transcribeButton.disabled = busy;
 
             if (session) {
@@ -895,7 +896,6 @@
         }
 
         function stop() {
-            if (transcribing) { transcribing.abort(); }
             if (session && session.conversation) { session.conversation.stop(); }
         }
 
@@ -973,7 +973,7 @@
 
             if (!isFile(videoOf()) || hasSubtitles()) { return; }
 
-            if (offered && offered.ok) {
+            if (offered && offered.ok && transcriptsMode()) {
                 var start = button('conversationalUiTranscribeIntro', labels['ConversationalUiTranscribe'], 'icon-captions-on');
                 start.addEventListener('click', function() { openTranscription(current); });
                 line.append(document.createTextNode(labels['ConversationalUiTranscriptMissing'] + ' '), start);
@@ -983,26 +983,6 @@
                 line.hidden = false;
             }
 
-        }
-
-        function languageName(code) {
-            try {
-                var name = new Intl.DisplayNames([language], { type: 'language' }).of(code);
-                return (name && name !== code) ? name : code;
-            } catch (e) {
-                return code;
-            }
-        }
-
-        // The languages Whisper knows, by name in the interface's language.
-        function languages() {
-            var codes = [];
-            Object.keys(media.LANGUAGES).forEach(function(name) {
-                var code = media.LANGUAGES[name];
-                if (codes.indexOf(code) < 0) { codes.push(code); }
-            });
-            return codes.map(function(code) { return { code: code, name: languageName(code) }; })
-                .sort(function(a, b) { return a.name.localeCompare(b.name, language); });
         }
 
         // Where the transcription is, in words: the stage, its time, how much is sent.
@@ -1039,10 +1019,19 @@
          * I have the server transcribe the open hypervideo's video, and make
          * the WebVTT of it: { lang, vtt, cues, duration, replaced }. The
          * language is the one asked for, or what the speech server heard.
+         * One at a time: transcribing is set while it runs.
          */
         function transcribeVideo(asked, signal, onProgress) {
 
             var id = hypervideoId;
+
+            transcribing = true;
+            update();
+
+            function done() {
+                transcribing = false;
+                update();
+            }
 
             return media.transcribe({
                 url:          StorageManager.extensionURL('conversational-ui', 'transcribe'),
@@ -1051,6 +1040,7 @@
                 signal:       signal,
                 onProgress:   onProgress
             }).then(function(result) {
+                done();
                 if (hypervideoId !== id) { throw media.mediaError('stopped', 'Stopped'); }
                 var info = FrameTrail.edit.getInfo(),
                     lang = asked || media.languageCode(result.language) || 'und',
@@ -1062,168 +1052,95 @@
                     duration: result.duration,
                     replaced: FrameTrail.edit.list('subtitles').some(function(entry) { return entry.srclang === lang; })
                 };
+            }, function(e) {
+                done();
+                throw e;
             });
 
         }
 
-        // The transcription entry in the log: the language, then its progress, then what came of it.
+        // Whether FrameTrail has the Transcripts edit mode (it came with its pure global FrameTrailWebVTT).
+        function transcriptsMode() {
+            return typeof window.FrameTrailWebVTT === 'object' && window.FrameTrailWebVTT !== null;
+        }
+
+        // The bar's button and the intro's: to the Transcripts edit mode, whose Generate button is this
+        // add-on's transcriber; or, in the log, why this video cannot be transcribed.
         function openTranscription(current) {
 
-            if (busy || !current || current !== session) { return; }
+            if (busy || !current || current !== session || !transcriptsMode()) { return; }
 
             var offered = transcription();
             if (!offered) { return; }
 
+            if (offered.ok) {
+                FrameTrail.changeState('editMode', 'transcripts');
+                return;
+            }
+
             var view = {
-                element:    element('div', 'conversationalUiTurn conversationalUiTranscription'),
-                parts:      element('div', 'conversationalUiParts'),
-                footer:     element('div', 'conversationalUiFooter'),
-                texts:      {},
-                tools:      {},
-                tickers:    {},
-                waiting:    null,
-                turn:       null,
-                undoLabels: ['ConversationalUiUndoTranscription', 'ConversationalUiRedoTranscription']
+                element: element('div', 'conversationalUiTurn conversationalUiTranscription'),
+                parts:   element('div', 'conversationalUiParts')
             };
 
-            view.element.append(element('div', 'conversationalUiMessage conversationalUiUser', labels['ConversationalUiTranscribe']), view.parts, view.footer);
+            view.element.append(element('div', 'conversationalUiMessage conversationalUiUser', labels['ConversationalUiTranscribe']), view.parts);
             current.log.append(view.element);
             current.views.push(view);
             current.intro.hidden = true;
 
-            function close() {
+            var reason = element('p', 'message active', labels[TRANSCRIBE_REASON_LABELS[offered.reason]]),
+                okRow  = element('div', 'conversationalUiActions'),
+                okay   = button('conversationalUiTranscribeClose', labels['ConversationalUiTranscribeClose']);
+
+            okay.addEventListener('click', function() {
                 view.element.remove();
                 current.views.splice(current.views.indexOf(view), 1);
                 current.intro.hidden = current.views.length > 0;
-            }
-
-            if (!offered.ok) {
-                var reason = element('p', 'message active', labels[TRANSCRIBE_REASON_LABELS[offered.reason]]),
-                    okRow  = element('div', 'conversationalUiActions'),
-                    okay   = button('conversationalUiTranscribeClose', labels['ConversationalUiTranscribeClose']);
-                okay.addEventListener('click', close);
-                okRow.append(okay);
-                view.parts.append(reason, okRow);
-                scrollDown(true);
-                okay.focus();
-                return;
-            }
-
-            var form    = element('div', 'conversationalUiTranscribeForm'),
-                hint    = element('p', 'conversationalUiHint', labels['ConversationalUiTranscribeHint']),
-                field   = element('div', 'conversationalUiField'),
-                label   = element('label', null, labels['ConversationalUiTranscribeLanguage']),
-                wrap    = element('div', 'custom-select'),
-                select  = element('select'),
-                actions = element('div', 'conversationalUiActions'),
-                start   = button('conversationalUiTranscribeStart', labels['ConversationalUiTranscribeStart']),
-                cancel  = button('conversationalUiTranscribeCancel', labels['ConversationalUiTranscribeCancel']);
-
-            select.id = 'conversationalUiTranscribeLanguage' + (++fieldIds);
-            label.htmlFor = select.id;
-            [{ code: '', name: labels['ConversationalUiTranscribeAutomatic'] }].concat(languages()).forEach(function(entry) {
-                var option = element('option', null, entry.name);
-                option.value = entry.code;
-                select.append(option);
             });
-
-            wrap.append(select);
-            field.append(label, wrap);
-            actions.append(start, cancel);
-            form.append(hint, field, actions);
-            view.parts.append(form);
+            okRow.append(okay);
+            view.parts.append(reason, okRow);
             scrollDown(true);
-            select.focus();
-
-            cancel.addEventListener('click', close);
-            start.addEventListener('click', function() {
-                form.remove();
-                runTranscription(current, view, select.value || null);
-            });
+            okay.focus();
 
         }
 
-        function runTranscription(current, view, asked) {
+        /**
+         * FrameTrail's Transcripts edit mode asks whether it may offer the
+         * transcription (the extension's transcriber): false where it is not
+         * offered at all, the reason where this video cannot be transcribed
+         * now, else true.
+         */
+        function transcriberAvailable() {
+            var offered = transcription();
+            if (!offered) { return false; }
+            if (!offered.ok) { return labels[TRANSCRIBE_REASON_LABELS[offered.reason]]; }
+            if (transcribing) { return labels['ConversationalUiTranscribeRunning']; }
+            return true;
+        }
 
-            var controller = new AbortController(),
-                line       = element('div', 'conversationalUiPending'),
-                ticker     = progressTicker(function(text) { line.textContent = text; });
+        /**
+         * The transcription for the Transcripts edit mode: { language, vtt }.
+         * Its language (a code like de or pt-BR, or null to detect it) goes
+         * to the server as the base language (pt); the subtitles keep the
+         * code the mode asked for. Progress in words, its time counting on;
+         * failures in words.
+         */
+        function transcriberRun(request) {
 
-            view.parts.append(line);
-            view.element.setAttribute('aria-busy', 'true');
-            transcribing = controller;
-            busy = true;
-            update();
-
-            transcribeVideo(asked, controller.signal, ticker.set).then(function(made) {
-
-                if (!made.cues) { return { made: made, description: null }; }
-
-                var description = describe(format(labels['ConversationalUiTranscriptionStep'], { language: languageName(made.lang) })),
-                    store       = ops.liveStore(FrameTrail);
-
-                return Promise.resolve().then(function() {
-                    return store.transaction(description, function(tx) {
-                        return ops.record(tx, { summary: description }).run('set_subtitles', { lang: made.lang, vtt: made.vtt });
-                    });
-                }).then(function() {
-                    return { made: made, description: description };
+            var wanted = (typeof request.language === 'string') ? request.language : null,
+                base   = wanted ? wanted.split(/[-_]/)[0].toLowerCase() : null,
+                asked  = (base && /^[a-z]{2,3}$/.test(base)) ? base : null,
+                ticker = progressTicker(function(text) {
+                    try { request.onProgress(text); } catch (e) { /* the mode's to show */ }
                 });
 
-            }).then(function(outcome) {
-
-                var made = outcome.made;
-
-                if (!outcome.description) {
-                    view.footer.append(element('p', 'conversationalUiState', labels['ConversationalUiTranscribeNoSpeech']));
-                    return;
-                }
-
-                view.turn  = { description: outcome.description, changed: true, request: labels['ConversationalUiTranscribe'] };
-                view.notes = {
-                    undo: 'The user undid the transcription: the subtitles in ' + made.lang + ' are as they were before it.',
-                    redo: 'The user redid the transcription: the subtitles in ' + made.lang + ' (' + made.cues + ' cues) are there again.'
-                };
-
-                view.footer.append(element('p', 'conversationalUiState', format(labels[made.replaced ? 'ConversationalUiTranscribeReplaced' : 'ConversationalUiTranscribeDone'],
-                    { count: made.cues, language: languageName(made.lang) })));
-
-                var actions = element('div', 'conversationalUiActions'),
-                    undo    = button('conversationalUiUndo', labels['ConversationalUiUndoTranscription'], 'icon-ccw'),
-                    next    = button('conversationalUiExample', labels['ConversationalUiExampleChaptersAll']);
-
-                undo.addEventListener('click', function() { undoTurn(current, view); });
-                next.addEventListener('click', function() {
-                    input.value = labels['ConversationalUiExampleChaptersAll'];
-                    input.focus();
-                });
-                view.undo = undo;
-                actions.append(undo, next);
-                view.footer.append(actions);
-
-                view.message = element('p', 'conversationalUiState');
-                view.message.hidden = true;
-                view.footer.append(view.message);
-
-                tellModel(current, 'The user transcribed the video: subtitles in ' + made.lang + ' (' + made.cues + ' cues) are there now'
-                    + (made.replaced ? ', replacing the ones before' : '') + '; read_transcript reads them.');
-
-            }, function(e) {
-
-                var stopped = e && e.code === 'stopped';
-                view.footer.append(errorMessage(stopped ? 'conversationalUiState' : 'message active error', transcribeErrorText(labels, e, language), e));
-
-            }).then(function() {
-
+            return transcribeVideo(asked, request.signal, ticker.set).then(function(made) {
                 ticker.stop();
-                line.remove();
-                view.element.removeAttribute('aria-busy');
-                transcribing = null;
-                busy = false;
-                refreshUndo();
-                update();
-                scrollDown(false);
-
+                if (!made.cues) { throw new Error(labels['ConversationalUiTranscribeNoSpeech']); }
+                return { language: wanted || made.lang, vtt: made.vtt };
+            }, function(e) {
+                ticker.stop();
+                throw new Error(transcribeErrorText(labels, e, language));
             });
 
         }
@@ -1279,8 +1196,7 @@
                 if (!view.undo) { return; }
                 var description = view.turn.description,
                     redo        = redoTop === description && undoTop !== description;
-                var words = view.undoLabels || ['ConversationalUiUndoTurn', 'ConversationalUiRedoTurn'];
-                view.undo.lastChild.textContent = labels[redo ? words[1] : words[0]];
+                view.undo.lastChild.textContent = labels[redo ? 'ConversationalUiRedoTurn' : 'ConversationalUiUndoTurn'];
                 view.undo.firstChild.className = redo ? 'icon-cw' : 'icon-ccw';
                 view.undo.classList.toggle('stale', undoTop !== description && !redo);
             });
@@ -1297,7 +1213,7 @@
 
             if (busy || FrameTrail.getState('editBusy')) { say(view, 'ConversationalUiUndoBusy'); return; }
 
-            var notes = view.notes || {
+            var notes = {
                 undo: 'The user undid the changes of your turn about: "' + excerpt(view.turn.request, 80) + '".',
                 redo: 'The user redid the changes of your turn about: "' + excerpt(view.turn.request, 80) + '".'
             };
@@ -1349,6 +1265,12 @@
             },
 
             focus: function() { if (!input.disabled) { input.focus(); } },
+
+            // For the extension's transcriber (module.js): FrameTrail's Transcripts edit mode.
+            transcriber: {
+                available:  transcriberAvailable,
+                transcribe: transcriberRun
+            },
 
             stop: stop,
 

@@ -2,7 +2,9 @@
  * FrameTrail-Conversational-UI — the extension's entry, last in the build
  * order. It registers the extension with FrameTrail as "conversational-ui",
  * brings the labels, and takes the add-on's place in the interface: the chat
- * panel (ui/panel.js) in a side panel beside the player while editing.
+ * panel (ui/panel.js) in a side panel beside the player while editing, and
+ * the transcriber of FrameTrail's Transcripts edit mode (its Generate
+ * button), which the panel provides: the server's transcription.
  *
  * FrameTrail loads it from config.json → extensions, or a page that includes
  * the script names it in the extensions init option (see README.md). The
@@ -69,6 +71,20 @@
                     },
                     onOpen:  function() {
                         if (chat) { chat.refresh(); chat.focus(); }
+                    }
+                },
+
+                // FrameTrail's Transcripts edit mode offers it where the server
+                // transcribes (FrameTrail after 1.4.1; an older one has no such
+                // mode and ignores the slot).
+                transcriber: {
+                    label:     labels['ConversationalUiTranscribe'],
+                    available: function() {
+                        return chat ? chat.transcriber.available() : false;
+                    },
+                    transcribe: function(request) {
+                        return chat ? chat.transcriber.transcribe(request)
+                                    : Promise.reject(new Error(labels['ConversationalUiTranscribeNeedsServer']));
                     }
                 }
 

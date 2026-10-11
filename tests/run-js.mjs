@@ -516,15 +516,19 @@ describe('the extension', () => {
         assert.equal(ft.Localization.added[0], context.FrameTrailConversationalUI.labels);
     });
 
-    test('takes a side panel while editing, and nothing else', () => {
+    test('takes a side panel while editing and the Transcripts mode\'s transcriber, and nothing else', () => {
         const { context, registered } = load(),
               extension = registered[NAME](instance());
-        assert.deepEqual(Object.keys(extension.slots), ['sidePanel']);
+        assert.deepEqual(Object.keys(extension.slots), ['sidePanel', 'transcriber']);
         const panel = extension.slots.sidePanel;
         assert.equal(panel.when, 'edit');
         assert.equal(panel.icon, 'icon-ai');
         assert.equal(panel.label, context.FrameTrailConversationalUI.labels.en.ConversationalUiTitle);
         assert.equal(typeof panel.create, 'function');
+        const transcriber = extension.slots.transcriber;
+        assert.equal(transcriber.label, context.FrameTrailConversationalUI.labels.en.ConversationalUiTranscribe);
+        assert.equal(transcriber.available(), false, 'not offered before the panel is there');
+        assert.equal(typeof transcriber.transcribe, 'function');
     });
 
     test('labels the panel in the interface language', () => {
@@ -1965,6 +1969,8 @@ describe('the panel', () => {
               store = ns.ops.modelStore(readJSON(path.join(DATA, 'lecture.json')), { user: { id: '1', name: 'Ada', role: 'user' } });
         if ('user' in options) { store.getUser = () => options.user; }
         if (options.prepare) { options.prepare(store); }
+        // FrameTrail's Transcripts edit mode came with its pure global FrameTrailWebVTT.
+        if (options.transcriptsMode !== false) { context.FrameTrailWebVTT = {}; }
         const ft    = instance('en', { state: { storageMode: options.storageMode || 'download' }, status: options.status, edit: store }),
               ext   = registered[NAME](ft),
               container = context.document.createElement('div');
@@ -2125,54 +2131,44 @@ describe('the panel', () => {
     const idle   = async (panel) => { while (panel.root.classList.contains('busy')) { await tick(); } };
     const entry  = (panel) => panel.root.querySelectorAll('div.conversationalUiTranscription').at(-1);
 
-    test('transcription: the bar\'s button where the server has it, the language, progress, the subtitles as one undo step, and the model is told', async () => {
-        const script = [says('Gern.')];
-        const panel = await opened({ storageMode: 'server', status: speech({}), key: 'test-key', fetch: (url, init) => {
+    test('transcription: the bar\'s button opens FrameTrail\'s Transcripts mode, whose Generate button is the add-on\'s transcriber', async () => {
+        const panel = await opened({ storageMode: 'server', status: speech({}), fetch: (url) => {
             if (url === ROUTE) { return Promise.resolve(sse([['progress', { stage: 'extracting', elapsed: 0 }], ['progress', { stage: 'transcribing', elapsed: 0 }], ['result', heard]], 9)); }
-            if (/\/models$/.test(url)) { return Promise.resolve(answer(200, { data: [] })); }
-            return Promise.resolve(completion(script.shift()));
+            return Promise.reject(new Error('no network in the tests'));
         } });
         const button = panel.root.querySelector('.conversationalUiTranscribe');
         assert.equal(button.hidden, false);
         assert.equal(button.getAttribute('aria-label'), panel.labels.ConversationalUiTranscribe);
         button.click();
-        const view = entry(panel);
-        assert.equal(view.querySelector('.conversationalUiUser').textContent, panel.labels.ConversationalUiTranscribe);
-        const language = view.querySelector('select');
-        assert.equal(language.children[0].textContent, panel.labels.ConversationalUiTranscribeAutomatic);
-        assert.ok(language.children.some((option) => option.value === 'de' && option.textContent === 'German'), 'languages by their names');
-        language.value = 'de';
-        view.querySelector('.conversationalUiTranscribeStart').click();
-        assert.ok(panel.root.classList.contains('busy'), 'busy while it runs');
-        assert.equal(panel.root.querySelector('.conversationalUiSend').textContent, panel.labels.ConversationalUiStop);
-        await idle(panel);
-        const request = panel.fetches.find((f) => f.url === ROUTE);
-        assert.deepEqual(request.body, { hypervideoId: '1', language: 'de' });
-        assert.equal(json(panel.store.get('subtitles', 'de')).vtt, vttOf);
-        assert.equal(panel.ft.UndoManager.getUndoDescription(), 'Assistant: Transcription (German)');
-        assert.equal(view.querySelector('p.conversationalUiState').textContent,
-            panel.labels.ConversationalUiTranscribeDone.replace('{count}', '2').replace('{language}', 'German'));
-        const undo = view.querySelector('.conversationalUiUndo');
-        assert.equal(undo.textContent, panel.labels.ConversationalUiUndoTranscription);
-        undo.click();
-        assert.deepEqual(panel.ft.UndoManager.redoStack, ['Assistant: Transcription (German)']);
-        assert.equal(undo.textContent, panel.labels.ConversationalUiRedoTranscription);
-        view.querySelector('.conversationalUiExample').click();
-        const input = panel.root.querySelector('textarea');
-        assert.equal(input.value, panel.labels.ConversationalUiExampleChaptersAll);
-        input.dispatch('keydown', { key: 'Enter', shiftKey: false, isComposing: false });
-        await idle(panel);
-        const chat = panel.fetches.find((f) => /chat\/completions$/.test(f.url));
-        const asked = chat.body.messages.at(-1).content;
-        assert.match(asked, /^\[The user transcribed the video: subtitles in de \(2 cues\) are there now; read_transcript reads them\.\]\n\[The user undid the transcription/);
-        assert.match(asked, /\nAdd a chapter at each topic change$/);
-        assert.ok(chat.body.tools.some((tool) => tool.function.name === 'transcribe_video'), 'the model has the tool here');
+        assert.equal(panel.ft.state.editMode, 'transcripts');
+        assert.equal(entry(panel), undefined, 'nothing in the log');
+
+        const slot = panel.ext.slots.transcriber;
+        assert.equal(slot.label, panel.labels.ConversationalUiTranscribe);
+        assert.equal(slot.available({ hypervideoId: '1' }), true);
+        const progress = [],
+              pending  = slot.transcribe({ hypervideoId: '1', language: 'de-AT', signal: new AbortController().signal, onProgress: (text) => progress.push(text) });
+        assert.equal(slot.available(), panel.labels.ConversationalUiTranscribeRunning, 'one at a time');
+        const made = await pending;
+        assert.deepEqual(json(made), { language: 'de-AT', vtt: vttOf }, 'the language asked for, as the mode asked for it');
+        assert.deepEqual(panel.fetches.find((f) => f.url === ROUTE).body, { hypervideoId: '1', language: 'de' }, 'its base language to the server');
+        assert.deepEqual(progress, [panel.labels.ConversationalUiTranscribeStarting, 'Taking the sound out of the video (0:00)', 'Transcribing (0:00)']);
+        assert.equal(panel.store.get('subtitles', 'de'), null, 'FrameTrail writes the subtitles, not the add-on');
+        assert.deepEqual(panel.ft.UndoManager.undoStack, []);
+        assert.equal(slot.available(), true, 'free again');
+        const detected = await slot.transcribe({ hypervideoId: '1', language: null, signal: new AbortController().signal, onProgress() {} });
+        assert.equal(detected.language, 'de', 'the language heard');
+        assert.deepEqual(panel.fetches.filter((f) => f.url === ROUTE)[1].body, { hypervideoId: '1' });
+
+        const older = await opened({ storageMode: 'server', status: speech({}), transcriptsMode: false });
+        assert.equal(older.root.querySelector('.conversationalUiTranscribe').hidden, true, 'a FrameTrail without the Transcripts mode: no button');
     });
 
     test('transcription: not offered without a server that has it; why not, for this video; the intro', async () => {
         const noSubtitles = (store) => store.setSubtitles('en', null);
         const local = await opened({ storageMode: 'local', prepare: noSubtitles });
         assert.equal(local.root.querySelector('.conversationalUiTranscribe').hidden, true);
+        assert.equal(local.ext.slots.transcriber.available(), false, 'not offered: no Generate button in the Transcripts mode');
         const hint = local.root.querySelector('.conversationalUiTranscriptHint');
         assert.equal(hint.hidden, false);
         assert.equal(hint.textContent, local.labels.ConversationalUiTranscriptMissing + ' ' + local.labels.ConversationalUiTranscribeNeedsServer);
@@ -2181,16 +2177,18 @@ describe('the panel', () => {
         const without = await opened({ storageMode: 'server', status: speech({}, false), prepare: noSubtitles });
         assert.equal(without.root.querySelector('.conversationalUiTranscribe').hidden, true, 'not where the server has none');
         assert.equal(without.root.querySelector('.conversationalUiTranscriptHint').hidden, true);
+        assert.equal(without.ext.slots.transcriber.available(), false);
         const broken = await opened({ storageMode: 'server', status: speech({}, { available: false, problem: 'curl' }) });
         assert.equal(broken.root.querySelector('.conversationalUiTranscribe').hidden, true, 'not where it cannot work');
+        assert.equal(broken.ext.slots.transcriber.available(), false);
 
         const offered = await opened({ storageMode: 'server', status: speech({}), prepare: noSubtitles });
         const intro = offered.root.querySelector('.conversationalUiTranscriptHint');
         assert.equal(intro.hidden, false);
         intro.querySelector('button').click();
-        assert.ok(entry(offered).querySelector('select'), 'the intro\'s button opens it too');
-        entry(offered).querySelector('.conversationalUiTranscribeCancel').click();
-        assert.equal(entry(offered), undefined, 'Cancel takes it away');
+        assert.equal(offered.ft.state.editMode, 'transcripts', 'the intro\'s button opens the mode too');
+        const older = await opened({ storageMode: 'server', status: speech({}), prepare: noSubtitles, transcriptsMode: false });
+        assert.equal(older.root.querySelector('.conversationalUiTranscriptHint').hidden, true, 'no offer without the mode');
 
         const reasons = [
             [(store) => { store.getInfo = () => Object.assign(json(offered.store.getInfo()), { video: 'https://www.youtube.com/watch?v=abc' }); }, 'ConversationalUiTranscribeNotFile'],
@@ -2199,70 +2197,61 @@ describe('the panel', () => {
         ];
         for (const [prepare, label] of reasons) {
             const panel = await opened({ storageMode: 'server', status: speech({}), prepare });
+            assert.equal(panel.ext.slots.transcriber.available(), panel.labels[label], 'the Transcripts mode says why');
             panel.root.querySelector('.conversationalUiTranscribe').click();
+            assert.equal(panel.ft.state.editMode, 'overlays', 'the mode stays');
             assert.equal(entry(panel).querySelector('p.message').textContent, panel.labels[label]);
-            assert.equal(entry(panel).querySelector('select'), null);
             entry(panel).querySelector('.conversationalUiTranscribeClose').click();
             assert.equal(entry(panel), undefined);
         }
         const guest = await opened({ storageMode: 'server', status: speech({}), user: { id: 'guest_ada-1', name: 'Ada', role: 'user', guest: true } });
         guest.root.querySelector('.conversationalUiTranscribe').click();
         assert.equal(entry(guest).querySelector('p.message').textContent, guest.labels.ConversationalUiTranscribeErrorLogin);
+        assert.equal(guest.ext.slots.transcriber.available(), guest.labels.ConversationalUiTranscribeErrorLogin);
     });
 
     test('transcription: failures in words, no speech, and Stop', async () => {
         let route = () => Promise.resolve(answer(422, { error: { code: 'noFile', message: 'Only uploaded video files can be transcribed, not videos from other sites or streams.' } }));
-        const panel = await opened({ storageMode: 'server', status: speech({}), fetch: (url, init) => route(url, init) });
-        const start = () => {
-            panel.root.querySelector('.conversationalUiTranscribe').click();
-            entry(panel).querySelector('.conversationalUiTranscribeStart').click();
+        const panel = await opened({ storageMode: 'server', status: speech({}), fetch: (url, init) => route(url, init) }),
+              slot  = panel.ext.slots.transcriber;
+        const fails = async (signal = new AbortController().signal) => {
+            try { await slot.transcribe({ hypervideoId: '1', language: null, signal, onProgress() {} }); } catch (e) { return e.message; }
+            return null;
         };
-        start();
-        await idle(panel);
-        assert.equal(entry(panel).querySelector('p.error').textContent,
-            'The transcription failed: Only uploaded video files can be transcribed, not videos from other sites or streams.');
+        assert.equal(await fails(), 'The transcription failed: Only uploaded video files can be transcribed, not videos from other sites or streams.');
         route = () => Promise.resolve(answer(413, { error: { code: 'tooLarge', message: 'The video (120 MB) is larger than the 100 MB that may be sent.' } }));
-        start();
-        await idle(panel);
-        assert.equal(entry(panel).querySelector('p.error').textContent,
-            'The video is too large to be transcribed here. The video (120 MB) is larger than the 100 MB that may be sent.');
+        assert.equal(await fails(), 'The video is too large to be transcribed here. The video (120 MB) is larger than the 100 MB that may be sent.');
         route = () => Promise.resolve(sse([['result', { language: 'de', duration: 5, offset: 0, segments: [{ start: 0, end: 5, text: ' [BLANK_AUDIO]' }] }]]));
-        start();
-        await idle(panel);
-        assert.equal(entry(panel).querySelector('p.conversationalUiState').textContent, panel.labels.ConversationalUiTranscribeNoSpeech);
-        assert.equal(entry(panel).querySelector('.conversationalUiUndo'), null);
+        assert.equal(await fails(), panel.labels.ConversationalUiTranscribeNoSpeech);
         route = hanging;
-        start();
+        const controller = new AbortController(),
+              pending    = fails(controller.signal);
         await tick();
-        panel.root.querySelector('.conversationalUiSend').click();
-        await idle(panel);
-        assert.equal(entry(panel).querySelector('p.conversationalUiState').textContent, panel.labels.ConversationalUiStopped);
+        assert.equal(slot.available(), panel.labels.ConversationalUiTranscribeRunning);
+        panel.ext.onHypervideoChange('1');
+        await tick();
+        assert.equal(slot.available(), panel.labels.ConversationalUiTranscribeRunning, 'the panel\'s Stop is the chat\'s, not the mode\'s');
+        controller.abort();
+        assert.equal(await pending, panel.labels.ConversationalUiStopped);
+        assert.equal(slot.available(), true, 'free again');
         assert.deepEqual(panel.ft.UndoManager.undoStack, [], 'nothing changed');
         assert.equal(panel.store.get('subtitles', 'de'), null);
     });
 
-    test('transcription behind a platform\'s gateway: its place in line, and a month\'s allowance used up with the platform\'s link', async () => {
-        let route = () => Promise.resolve(sse([['progress', { stage: 'queued', elapsed: 0, position: 3 }],
+    test('transcription behind a platform\'s gateway: its place in line, and a month\'s allowance used up', async () => {
+        const route = () => Promise.resolve(sse([['progress', { stage: 'queued', elapsed: 0, position: 3 }],
             ['error', { error: { code: 'quota', message: 'This month\'s minutes are used up.', period: 'month', resetsAt: '2026-11-01T00:00:00+01:00' } }]]));
         const panel = await opened({ storageMode: 'server', status: speech({}), settings: { label: 'Linked.Video', manageUrl: 'https://linked.video/manage/my-plan' },
             fetch: (url, init) => route(url, init) });
-        panel.root.querySelector('.conversationalUiTranscribe').click();
-        entry(panel).querySelector('.conversationalUiTranscribeStart').click();
-        await idle(panel);
-        const error = entry(panel).querySelector('p.error');
-        assert.match(error.textContent, /^This month's transcription minutes are used up\. They renew on (November 1|1 November)\. Manage$/);
-        const link = error.querySelector('a');
-        assert.equal(link.href, 'https://linked.video/manage/my-plan');
-        assert.equal(link.textContent, panel.labels.ConversationalUiSettingsManage);
-        // Other failures carry no link.
-        route = () => Promise.resolve(answer(413, { error: { code: 'tooLarge', message: 'Too large.' } }));
-        panel.root.querySelector('.conversationalUiTranscribe').click();
-        entry(panel).querySelector('.conversationalUiTranscribeStart').click();
-        await idle(panel);
-        assert.equal(entry(panel).querySelector('p.error').querySelector('a'), null);
-        // The place in line, in words.
-        assert.equal(panel.ns.labels.en.ConversationalUiTranscribeQueued.replace('{position}', '3').replace('{time}', '0:00'),
-            'Waiting for the speech recognition, number 3 in line (0:00)');
+        const progress = [];
+        let message = null;
+        try {
+            await panel.ext.slots.transcriber.transcribe({ hypervideoId: '1', language: null, signal: new AbortController().signal, onProgress: (text) => progress.push(text) });
+        } catch (e) {
+            message = e.message;
+        }
+        assert.ok(progress.includes('Waiting for the speech recognition, number 3 in line (0:00)'), progress.join(' | '));
+        assert.match(message, /^This month's transcription minutes are used up\. They renew on (November 1|1 November)\.$/);
     });
 
     test('transcription: the model\'s tool, where the server has it; its progress in the tool line, its subtitles in the turn\'s undo step', async () => {
