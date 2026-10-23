@@ -33,9 +33,9 @@
     // The $id of the schema document made from the manifest; its $defs are the manifest's and each operation's input and output.
     var OPERATIONS_ID = 'https://raw.githubusercontent.com/OpenHypervideo/FrameTrail-Conversational-UI/main/shared/operations.json';
 
-    var ITEM_KINDS  = ['overlays', 'annotations', 'chapters', 'codeSnippets'],
+    var ITEM_KINDS  = ['overlays', 'annotations', 'chapters'],
         AREAS       = ['top', 'bottom', 'left', 'right'],
-        NAMES       = { overlays: 'overlay', annotations: 'annotation', chapters: 'chapter', codeSnippets: 'code snippet' },
+        NAMES       = { overlays: 'overlay', annotations: 'annotation', chapters: 'chapter' },
         CALLS       = ['add', 'update', 'remove', 'setLayout', 'setSubtitles'];
 
     // Time map segments without chapters: the shortest of these that makes at most 12 segments.
@@ -384,8 +384,7 @@
                 overlays:       overlays.length,
                 annotations:    annotations.length,
                 ownAnnotations: annotations.filter(function(a) { return isObject(a.creator) && String(a.creator.id) === userId; }).length,
-                chapters:       chapters.length,
-                codeSnippets:   store.list('codeSnippets').length
+                chapters:       chapters.length
             },
             overlayTypes: overlayTypes,
             timeMap:     timeMap(range, chapters, overlays, annotations),
@@ -452,7 +451,7 @@
             });
         });
 
-        // By start; on a tie by kind (overlays, annotations, chapters, code snippets), then as stored.
+        // By start; on a tie by kind (overlays, annotations, chapters), then as stored.
         found.sort(function(a, b) {
             return (a.summary.start - b.summary.start) || (a.order[0] - b.order[0]) || (a.order[1] - b.order[1]);
         });

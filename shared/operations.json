@@ -5,9 +5,9 @@
             "type": "object",
             "required": ["kind", "ref", "start"],
             "properties": {
-                "kind": {"type": "string", "enum": ["overlays", "annotations", "chapters", "codeSnippets"]},
+                "kind": {"type": "string", "enum": ["overlays", "annotations", "chapters"]},
                 "ref": {
-                    "description": "What refers to the item: created (text) for overlays, annotations and code snippets, start (seconds) for chapters.",
+                    "description": "What refers to the item: created (text) for overlays and annotations, start (seconds) for chapters.",
                     "type": ["string", "number"]
                 },
                 "type": {"type": "string"},
@@ -81,7 +81,7 @@
         },
         {
             "name": "inspect_hypervideo",
-            "description": "Summarize the hypervideo: name, duration, the time range item times fall in, subtitle languages, the content views around the video, the number of overlays, annotations, chapters and code snippets, a time map (chapters, or equal segments, with the overlays and annotations that start in each), and what the user may change. Start here.",
+            "description": "Summarize the hypervideo: name, duration, the time range item times fall in, subtitle languages, the content views around the video, the number of overlays, annotations and chapters, a time map (chapters, or equal segments, with the overlays and annotations that start in each), and what the user may change. Start here.",
             "kind": "hypervideo",
             "effect": "read",
             "scope": "hypervideo",
@@ -165,13 +165,12 @@
                     },
                     "counts": {
                         "type": "object",
-                        "required": ["overlays", "annotations", "ownAnnotations", "chapters", "codeSnippets"],
+                        "required": ["overlays", "annotations", "ownAnnotations", "chapters"],
                         "properties": {
                             "overlays": {"type": "integer"},
                             "annotations": {"description": "Everyone's.", "type": "integer"},
                             "ownAnnotations": {"description": "The user's own.", "type": "integer"},
-                            "chapters": {"type": "integer"},
-                            "codeSnippets": {"type": "integer"}
+                            "chapters": {"type": "integer"}
                         }
                     },
                     "overlayTypes": {
@@ -215,7 +214,7 @@
         },
         {
             "name": "list_items",
-            "description": "List overlays, annotations, chapters and code snippets in short form, sorted by start: their ref (for get_item and the update and remove operations), type, name, time, box and a text excerpt. Narrow it down by kind, by a time span (from, to: items that overlap it), by type or by creator.",
+            "description": "List overlays, annotations and chapters in short form, sorted by start: their ref (for get_item and the update and remove operations), type, name, time, box and a text excerpt. Narrow it down by kind, by a time span (from, to: items that overlap it), by type or by creator.",
             "kind": "items",
             "effect": "read",
             "scope": "hypervideo",
@@ -226,7 +225,7 @@
                     "kind": {
                         "description": "Only items of this kind. All kinds when omitted.",
                         "type": "string",
-                        "enum": ["overlays", "annotations", "chapters", "codeSnippets"]
+                        "enum": ["overlays", "annotations", "chapters"]
                     },
                     "from": {
                         "description": "Only items that end at or after this time, in seconds.",
@@ -259,7 +258,7 @@
         },
         {
             "name": "get_item",
-            "description": "Get one overlay, annotation, chapter or code snippet in full, in FrameTrail's stored form (W3C Web Annotations for overlays, annotations and code snippets; { start, title } for chapters).",
+            "description": "Get one overlay, annotation or chapter in full, in FrameTrail's stored form (W3C Web Annotations for overlays and annotations; { start, title } for chapters).",
             "kind": "items",
             "effect": "read",
             "scope": "hypervideo",
@@ -268,7 +267,7 @@
                 "type": "object",
                 "required": ["kind", "ref"],
                 "properties": {
-                    "kind": {"type": "string", "enum": ["overlays", "annotations", "chapters", "codeSnippets"]},
+                    "kind": {"type": "string", "enum": ["overlays", "annotations", "chapters"]},
                     "ref": {
                         "description": "The item's ref from list_items: created (text), or a chapter's start (seconds).",
                         "type": ["string", "number"]

@@ -76,8 +76,8 @@
     }
 
     /**
-     * I return the short form of an item as stored: an overlay, annotation or
-     * code snippet (W3C), or a chapter ({ start, title }). context: userId
+     * I return the short form of an item as stored: an overlay or annotation
+     * (W3C), or a chapter ({ start, title }). context: userId
      * (to mark one's own annotations), chapterEnd (a chapter's end: where the
      * next one starts, or where the video ends).
      */
@@ -98,13 +98,6 @@
         var selector = selectorOf(item),
             span     = util.timeSpan(selector.value),
             short    = { kind: kind, ref: item.created };
-
-        if (kind === 'codeSnippets') {
-            var snippetBody = bodyOf(item);
-            if (typeof snippetBody['frametrail:name'] === 'string' && snippetBody['frametrail:name'] !== '') { short.name = snippetBody['frametrail:name']; }
-            short.start = span.start;
-            return short;
-        }
 
         if (kind === 'annotations') {
             var creator = isObject(item.creator) ? item.creator : {};

@@ -60,7 +60,7 @@
                 "timeRange": { "start": 0, "end": 30 },
                 "subtitles": [],
                 "layout": { "top": [], "bottom": [], "left": [], "right": [] },
-                "counts": { "overlays": 2, "annotations": 1, "ownAnnotations": 1, "chapters": 0, "codeSnippets": 0 },
+                "counts": { "overlays": 2, "annotations": 1, "ownAnnotations": 1, "chapters": 0 },
                 "overlayTypes": { "text": 2 },
                 "timeMap": [{ "start": 0, "end": 30, "overlays": 2, "annotations": 1 }],
                 "user": { "id": "1", "name": "Ada", "role": "user", "guest": false },

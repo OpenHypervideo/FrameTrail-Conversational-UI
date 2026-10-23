@@ -20,7 +20,7 @@
                     "left": [],
                     "right": [{ "type": "Transcript", "name": "Transcript" }]
                 },
-                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3, "codeSnippets": 1 },
+                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3 },
                 "overlayTypes": { "text": 1, "hotspot": 2, "image": 1 },
                 "timeMap": [
                     { "start": 0, "end": 120, "chapter": "Introduction", "overlays": 2, "annotations": 1 },
@@ -51,7 +51,7 @@
                     "left": [],
                     "right": [{ "type": "Transcript", "name": "Transcript" }]
                 },
-                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 1, "chapters": 3, "codeSnippets": 1 },
+                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 1, "chapters": 3 },
                 "overlayTypes": { "text": 1, "hotspot": 2, "image": 1 },
                 "timeMap": [
                     { "start": 0, "end": 120, "chapter": "Introduction", "overlays": 2, "annotations": 1 },
@@ -82,7 +82,7 @@
                     "left": [],
                     "right": [{ "type": "Transcript", "name": "Transcript" }]
                 },
-                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3, "codeSnippets": 1 },
+                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3 },
                 "overlayTypes": { "text": 1, "hotspot": 2, "image": 1 },
                 "timeMap": [
                     { "start": 0, "end": 120, "chapter": "Introduction", "overlays": 2, "annotations": 1 },
@@ -112,7 +112,7 @@
                     "left": [],
                     "right": [{ "type": "Transcript", "name": "Transcript" }]
                 },
-                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3, "codeSnippets": 1 },
+                "counts": { "overlays": 4, "annotations": 3, "ownAnnotations": 2, "chapters": 3 },
                 "overlayTypes": { "text": 1, "hotspot": 2, "image": 1 },
                 "timeMap": [
                     { "start": 0, "end": 120, "chapter": "Introduction", "overlays": 2, "annotations": 1 },
@@ -153,12 +153,6 @@
                         "start": 10,
                         "end": 40,
                         "text": "A membrane separates the cell from its surroundings."
-                    },
-                    {
-                        "kind": "codeSnippets",
-                        "ref": "2026-10-01T10:00:04.000Z",
-                        "name": "Pause for a question",
-                        "start": 60
                     },
                     {
                         "kind": "overlays",
@@ -218,7 +212,7 @@
                     },
                     { "kind": "chapters", "ref": 300, "title": "Transport", "start": 300, "end": 600 }
                 ],
-                "total": 11
+                "total": 10
             }
         },
         {
@@ -342,7 +336,7 @@
                     },
                     { "kind": "chapters", "ref": 0, "title": "Introduction", "start": 0, "end": 120 }
                 ],
-                "total": 11
+                "total": 10
             }
         },
         {
@@ -358,7 +352,7 @@
                 "errors": [
                     {
                         "path": "/kind",
-                        "message": "must be one of \"overlays\", \"annotations\", \"chapters\", \"codeSnippets\""
+                        "message": "must be one of \"overlays\", \"annotations\", \"chapters\""
                     }
                 ]
             }
@@ -402,35 +396,16 @@
             }
         },
         {
-            "name": "get_item: a code snippet",
+            "name": "get_item: code snippets are no kind",
             "op": { "op": "get_item", "input": { "kind": "codeSnippets", "ref": "2026-10-01T10:00:04.000Z" } },
-            "result": {
-                "item": {
-                    "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"],
-                    "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
-                    "created": "2026-10-01T10:00:04.000Z",
-                    "type": "Annotation",
-                    "frametrail:type": "CodeSnippet",
-                    "target": {
-                        "type": "Video",
-                        "source": "1_1790000000_lecture-3.mp4",
-                        "selector": {
-                            "conformsTo": "http://www.w3.org/TR/media-frags/",
-                            "type": "FragmentSelector",
-                            "value": "t=60"
-                        }
-                    },
-                    "body": {
-                        "type": "TextualBody",
-                        "frametrail:type": "codesnippet",
-                        "format": "text/javascript",
-                        "value": "FrameTrail.module('HypervideoController').pause();",
-                        "frametrail:name": "Pause for a question",
-                        "frametrail:thumb": null,
-                        "frametrail:resourceId": null,
-                        "frametrail:attributes": {}
+            "error": {
+                "code": "invalid",
+                "errors": [
+                    {
+                        "path": "/kind",
+                        "message": "must be one of \"overlays\", \"annotations\", \"chapters\""
                     }
-                }
+                ]
             }
         },
         {

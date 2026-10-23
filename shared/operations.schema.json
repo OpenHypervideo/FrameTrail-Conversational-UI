@@ -39,7 +39,7 @@
                     "type": "string"
                 },
                 "kind": {
-                    "description": "What it reads or changes. items: overlays, annotations, chapters and code snippets; types: the types of content items can have.",
+                    "description": "What it reads or changes. items: overlays, annotations and chapters; types: the types of content items can have.",
                     "type": "string",
                     "enum": ["hypervideos", "hypervideo", "items", "overlays", "annotations", "chapters", "subtitles", "contentViews", "types"]
                 },

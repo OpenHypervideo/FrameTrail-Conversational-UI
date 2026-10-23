@@ -130,7 +130,7 @@
 
         if (!Array.isArray(model.chapters)) { model.chapters = []; }
 
-        // The three kinds of W3C items, as the edit API has them.
+        // The kinds of W3C items, as the edit API has them (code snippets are none: FrameTrail has no editor for them).
         var ITEM_KINDS = {
             overlays: {
                 name:       'overlay',
@@ -142,17 +142,6 @@
                 set:        function(list) { model.overlays = list; },
                 parse:      function(item) { return Serializer.parseOverlay(item); },
                 serialize:  function(item) { return Serializer.serializeOverlay(item, itemContext()); }
-            },
-            codeSnippets: {
-                name:       'code snippet',
-                itemType:   'CodeSnippet',
-                schema:     'content-item.schema.json#/$defs/codeSnippet',
-                hypervideo: true,
-                timeSpan:   false,
-                list:       function() { return model.codeSnippets; },
-                set:        function(list) { model.codeSnippets = list; },
-                parse:      function(item) { return Serializer.parseCodeSnippet(item); },
-                serialize:  function(item) { return Serializer.serializeCodeSnippet(item, itemContext()); }
             },
             annotations: {
                 name:       'annotation',
@@ -217,7 +206,7 @@
         }
 
         // The kinds of things, and whether changing them needs the hypervideo's creator or an admin (as the edit API has them).
-        var KINDS = { overlays: true, codeSnippets: true, annotations: false, chapters: true, contentViews: true, subtitles: true, config: true };
+        var KINDS = { overlays: true, annotations: false, chapters: true, contentViews: true, subtitles: true, config: true };
 
         // Why the user may not change a kind of thing, or null when they may.
         function refusalOf(kind) {
@@ -337,7 +326,7 @@
                 errors = [],
                 type   = isObject(item.body) ? item.body['frametrail:type'] : undefined;
 
-            if (kind !== 'codeSnippets' && UNSHOWABLE_TYPES.indexOf(type) >= 0) {
+            if (UNSHOWABLE_TYPES.indexOf(type) >= 0) {
                 errors.push({ path: '/body/frametrail:type', message: 'is not a type this player can show' });
             }
 
@@ -442,7 +431,7 @@
                     return matches(filter, {
                         start:   data.start,
                         end:     (data.end !== undefined) ? data.end : data.start,
-                        type:    (kind === 'codeSnippets') ? 'codesnippet' : data.type,
+                        type:    data.type,
                         creator: data.creatorId
                     });
                 }).map(function(data) {
@@ -474,7 +463,7 @@
 
             } else {
 
-                throw editError('invalid', 'Unknown kind "' + kind + '"; one of overlays, codeSnippets, annotations, chapters, contentViews, subtitles');
+                throw editError('invalid', 'Unknown kind "' + kind + '"; one of overlays, annotations, chapters, contentViews, subtitles');
 
             }
 
@@ -765,7 +754,7 @@
                 return editError('invalid', 'Subtitles are set per language, with setSubtitles(lang, vttText)');
             }
 
-            return editError('invalid', 'Unknown kind "' + kind + '"; one of overlays, codeSnippets, annotations, chapters');
+            return editError('invalid', 'Unknown kind "' + kind + '"; one of overlays, annotations, chapters');
 
         }
 
@@ -889,7 +878,6 @@
         function snapshot() {
             return {
                 overlays:     model.overlays,
-                codeSnippets: model.codeSnippets,
                 chapters:     model.chapters,
                 layout:       model.layout,
                 files:        model.subtitles,
@@ -901,7 +889,6 @@
 
         function restore(saved) {
             model.overlays     = saved.overlays;
-            model.codeSnippets = saved.codeSnippets;
             model.chapters     = saved.chapters;
             model.layout       = saved.layout;
             model.subtitles    = saved.files;

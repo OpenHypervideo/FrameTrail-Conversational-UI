@@ -11,7 +11,9 @@
  *
  * It reads the store's items as stored, its chapters, its time (getInfo) and
  * subtitles, and the resources where the store knows them (resources(); the
- * editor's store does not, so unknown-resource finds nothing there).
+ * editor's store does not, so unknown-resource finds nothing there). Code
+ * snippets are no kind of the edit API (FrameTrail has no editor for them),
+ * so they are read from the hypervideo's contents.
  */
 
 (function(ConversationalUI) {
@@ -29,6 +31,12 @@
         return window.FrameTrailLint;
     }
 
+    // The code snippets of a hypervideo.json, as stored.
+    function codeSnippetsOf(hypervideo) {
+        var contents = (isObject(hypervideo) && Array.isArray(hypervideo.contents)) ? hypervideo.contents : [];
+        return contents.filter(function(item) { return isObject(item) && item['frametrail:type'] === 'CodeSnippet'; });
+    }
+
     /**
      * I read what FrameTrailLint.run() reads from a store: the hypervideo,
      * its time, items, chapters (sorted), subtitles and, where the store has
@@ -36,14 +44,15 @@
      */
     function collect(store) {
 
-        var info = store.getInfo() || {};
+        var info       = store.getInfo() || {},
+            hypervideo = store.getHypervideo();
 
         return {
-            hypervideo:   store.getHypervideo(),
+            hypervideo:   hypervideo,
             info:         { start: info.start, end: info.end },
             overlays:     store.list('overlays'),
             annotations:  store.list('annotations'),
-            codeSnippets: store.list('codeSnippets'),
+            codeSnippets: codeSnippetsOf(hypervideo),
             chapters:     store.list('chapters'),
             subtitles:    store.list('subtitles').filter(isObject).map(function(file) {
                               var entry = store.get('subtitles', file.srclang);

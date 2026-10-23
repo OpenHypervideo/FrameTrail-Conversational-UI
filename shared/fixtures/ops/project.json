@@ -75,7 +75,7 @@
                 "timeRange": { "start": 12, "end": 132 },
                 "subtitles": ["de"],
                 "layout": { "top": [], "bottom": [], "left": [], "right": [] },
-                "counts": { "overlays": 0, "annotations": 0, "ownAnnotations": 0, "chapters": 1, "codeSnippets": 0 },
+                "counts": { "overlays": 0, "annotations": 0, "ownAnnotations": 0, "chapters": 1 },
                 "overlayTypes": {},
                 "timeMap": [{ "start": 12, "end": 132, "chapter": "At the river", "overlays": 0, "annotations": 0 }],
                 "user": { "id": "1", "name": "Ada", "role": "user", "guest": false },
@@ -97,7 +97,7 @@
                 "timeRange": { "start": 0, "end": 90 },
                 "subtitles": [],
                 "layout": { "top": [], "bottom": [], "left": [], "right": [] },
-                "counts": { "overlays": 0, "annotations": 0, "ownAnnotations": 0, "chapters": 0, "codeSnippets": 0 },
+                "counts": { "overlays": 0, "annotations": 0, "ownAnnotations": 0, "chapters": 0 },
                 "overlayTypes": {},
                 "timeMap": [
                     { "start": 0, "end": 30, "overlays": 0, "annotations": 0 },
