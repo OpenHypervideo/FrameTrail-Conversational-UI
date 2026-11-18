@@ -46,7 +46,7 @@ export function typesPrompt(dir) {
           end   = (start >= 0) ? text.indexOf('\n## ', start + 1) : -1;
 
     if (start < 0 || end < 0) {
-        throw new Error('No "At a Glance" section in ' + file + ' (FrameTrail generates docs/TYPES.md since the release after 1.4.1)');
+        throw new Error('No "At a Glance" section in ' + file + ' (FrameTrail generates docs/TYPES.md since 1.4.2)');
     }
 
     const table = text.slice(start, end).split('\n').filter((line) => line.startsWith('|'));

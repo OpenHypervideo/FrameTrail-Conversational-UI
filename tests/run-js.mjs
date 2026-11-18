@@ -9,7 +9,7 @@
  * the extension registers, and, for the operations, with FrameTrail's own
  * serializer, keyframe math, lint, validator and schemas loaded first, as
  * FrameTrail loads them. Those come from a FrameTrail working copy with
- * FrameTrailLint (the release after 1.4.1; develop until then): the
+ * FrameTrailLint (1.4.2 or later): the
  * environment variable FRAMETRAIL_DIR, or --frametrail=<dir>, or the folder
  * next to this repository's, ../frametrail.
  *
@@ -261,7 +261,7 @@ let frameTrailChecked = false;
 function frameTrailScripts() {
     if (!frameTrailChecked) {
         const missing = FRAMETRAIL_SCRIPTS.filter((file) => !fs.existsSync(path.join(FRAMETRAIL, file)));
-        assert.deepEqual(missing, [], 'No FrameTrail working copy with FrameTrailLint (the release after 1.4.1; develop until then) at ' + FRAMETRAIL
+        assert.deepEqual(missing, [], 'No FrameTrail working copy with FrameTrailLint (1.4.2 or later) at ' + FRAMETRAIL
             + '; set FRAMETRAIL_DIR or pass --frametrail=<dir>');
         frameTrailChecked = true;
     }
@@ -1162,6 +1162,7 @@ describe('describe_type', () => {
               annotations = typesOf(documents[BASE + 'annotation-file.schema.json'].$defs.annotation.properties.body),
               store       = ops.modelStore(readJSON(path.join(DATA, 'lecture.json')), { user: { id: '1', name: 'Ada', role: 'user' } });
         assert.ok(overlays.length > 20, 'overlay types found');
+        let legacyFound = 0;
         for (const type of new Set(overlays.concat(annotations))) {
             const result = json(ops.run(store, 'describe_type', { type }));
             assert.deepEqual(json(ops.validateOutput('describe_type', result)), [], type);
@@ -1172,9 +1173,21 @@ describe('describe_type', () => {
             for (const legacy of ['animationIn', 'animationOut', 'animationDuration']) {
                 assert.ok(!(legacy in (result.attributes.properties || {})), type + ': no ' + legacy);
             }
+            // FrameTrail's schemas with their descriptions: a key kept for old data only is described as "Legacy."
+            const described = readJSON(path.join(FRAMETRAIL, 'schemas', 'attributes', type + '.schema.json')),
+                  isLegacy  = (schema) => /^Legacy\b/.test((schema && schema.description) || '');
+            for (const [key, schema] of Object.entries(described.properties || {})) {
+                const shown = (result.attributes.properties || {})[key];
+                if (isLegacy(schema)) { assert.ok(!shown, type + ': no ' + key); legacyFound++; continue; }
+                if (!schema.$ref) { assert.ok(shown, type + ': ' + key); }
+                for (const [inner, innerSchema] of Object.entries(schema.properties || {})) {
+                    if (isLegacy(innerSchema)) { assert.ok(!(shown && shown.properties && inner in shown.properties), type + ': no ' + key + '.' + inner); legacyFound++; }
+                }
+            }
             const own = Object.keys(documents[BASE + 'attributes/' + type + '.schema.json'].properties || {});
             assert.deepEqual(Object.keys(result.attributes.properties || {}).filter((key) => !own.includes(key)), [], type + ': only its own attributes');
         }
+        assert.ok(legacyFound >= 7, 'legacy keys found in FrameTrail\'s schemas: ' + legacyFound);
     });
 
     test('says where the src goes, as FrameTrail\'s serializer writes it (docs/DATA-MODEL.md, Resource types)', () => {

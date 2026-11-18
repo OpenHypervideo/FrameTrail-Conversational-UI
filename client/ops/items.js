@@ -181,6 +181,7 @@
         };
 
         if (has(input, 'tags'))   { item['frametrail:tags'] = clone(input.tags); }
+        if (has(input, 'pause'))  { item['frametrail:pause'] = input.pause; }
         if (has(input, 'events')) { item['frametrail:events'] = clone(input.events); }
         if (generator !== undefined) { item.generator = clone(generator); }
 
@@ -240,6 +241,16 @@
         if (has(input, 'tags'))   { patch['frametrail:tags'] = clone(input.tags); }
         if (has(input, 'events')) { patch['frametrail:events'] = clone(input.events); }
 
+        if (has(input, 'pause')) {
+            patch['frametrail:pause'] = input.pause;
+            // An onStart that only pauses is the older form of the pause: it goes, as when the pause is switched in FrameTrail's editor.
+            var events     = current['frametrail:events'],
+                Serializer = window.FrameTrailSerializer;
+            if (!has(input, 'events') && isObject(events) && Serializer && typeof Serializer.isPauseSnippet === 'function' && Serializer.isPauseSnippet(events.onStart)) {
+                patch['frametrail:events'] = { onStart: null };
+            }
+        }
+
         return finishPatch(patch, generator);
 
     }
@@ -254,7 +265,8 @@
             body:   clone(input.body)
         };
 
-        if (has(input, 'tags')) { item['frametrail:tags'] = clone(input.tags); }
+        if (has(input, 'tags'))  { item['frametrail:tags'] = clone(input.tags); }
+        if (has(input, 'pause')) { item['frametrail:pause'] = input.pause; }
         if (generator !== undefined) { item.generator = clone(generator); }
 
         return item;
@@ -273,8 +285,9 @@
             patch    = {};
 
         if (value !== selector.value) { patch.target = { selector: { value: value } }; }
-        if (has(input, 'body')) { patch.body = clone(input.body); }
-        if (has(input, 'tags')) { patch['frametrail:tags'] = clone(input.tags); }
+        if (has(input, 'body'))  { patch.body = clone(input.body); }
+        if (has(input, 'tags'))  { patch['frametrail:tags'] = clone(input.tags); }
+        if (has(input, 'pause')) { patch['frametrail:pause'] = input.pause; }
 
         return finishPatch(patch, generator);
 

@@ -273,6 +273,115 @@
             ]
         },
         {
+            "name": "add_annotation: a quiz that pauses",
+            "op": {
+                "op": "add_annotation",
+                "input": {
+                    "start": 250,
+                    "end": 270,
+                    "body": {
+                        "frametrail:type": "quiz",
+                        "frametrail:name": "Osmosis",
+                        "frametrail:attributes": {
+                            "questionType": "multipleChoice",
+                            "question": "Does osmosis need energy?",
+                            "answers": [
+                                { "text": "Yes", "correct": false, "action": "" },
+                                { "text": "No", "correct": true, "action": "" }
+                            ]
+                        }
+                    },
+                    "pause": true
+                }
+            },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-14T17:46:40.000Z",
+                "creator": { "nickname": "Ada", "id": "1" },
+                "own": true,
+                "type": "quiz",
+                "name": "Osmosis",
+                "start": 250,
+                "end": 270,
+                "text": "Does osmosis need energy?"
+            },
+            "inverse": { "method": "remove", "args": ["annotations", "2026-10-14T17:46:40.000Z"] },
+            "after": [
+                {
+                    "op": "add",
+                    "path": "/annotations/files/1/2",
+                    "value": {
+                        "target": {
+                            "selector": {
+                                "value": "t=250,270",
+                                "type": "FragmentSelector",
+                                "conformsTo": "http://www.w3.org/TR/media-frags/"
+                            },
+                            "type": "Video",
+                            "source": "1_1790000000_lecture-3.mp4"
+                        },
+                        "body": {
+                            "frametrail:type": "quiz",
+                            "frametrail:name": "Osmosis",
+                            "frametrail:attributes": {
+                                "questionType": "multipleChoice",
+                                "question": "Does osmosis need energy?",
+                                "answers": [
+                                    { "text": "Yes", "correct": false, "action": "" },
+                                    { "text": "No", "correct": true, "action": "" }
+                                ]
+                            }
+                        },
+                        "frametrail:pause": true,
+                        "generator": {
+                            "type": "Software",
+                            "name": "FrameTrail-Conversational-UI",
+                            "model": "mistral-medium-latest",
+                            "provider": "mistral"
+                        },
+                        "type": "Annotation",
+                        "frametrail:type": "Annotation",
+                        "creator": { "nickname": "Ada", "type": "Person", "id": "1" },
+                        "created": "2026-10-14T17:46:40.000Z",
+                        "@context": ["http://www.w3.org/ns/anno.jsonld", "https://frametrail.org/ns/context.jsonld"]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "update_annotation: pausing",
+            "op": { "op": "update_annotation", "input": { "ref": "2026-10-02T09:00:01.000Z", "pause": true } },
+            "result": {
+                "kind": "annotations",
+                "ref": "2026-10-02T09:00:01.000Z",
+                "creator": { "nickname": "Ada", "id": "1" },
+                "own": true,
+                "type": "wikipedia",
+                "name": "Cell membrane",
+                "start": 130,
+                "end": 170,
+                "src": "https://en.wikipedia.org/wiki/Cell_membrane",
+                "tags": ["reading"]
+            },
+            "inverse": {
+                "method": "update",
+                "args": ["annotations", "2026-10-02T09:00:01.000Z", { "frametrail:pause": null, "generator": null }]
+            },
+            "after": [
+                { "op": "add", "path": "/annotations/files/1/1/frametrail:pause", "value": true },
+                {
+                    "op": "add",
+                    "path": "/annotations/files/1/1/generator",
+                    "value": {
+                        "type": "Software",
+                        "name": "FrameTrail-Conversational-UI",
+                        "model": "mistral-medium-latest",
+                        "provider": "mistral"
+                    }
+                }
+            ]
+        },
+        {
             "name": "update_annotation: no more tags",
             "op": { "op": "update_annotation", "input": { "ref": "2026-10-02T09:00:01.000Z", "tags": null } },
             "result": {

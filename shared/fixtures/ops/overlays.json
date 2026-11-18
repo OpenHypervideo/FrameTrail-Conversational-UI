@@ -72,7 +72,7 @@
             ]
         },
         {
-            "name": "add_overlay: rotated, with tags and an event",
+            "name": "add_overlay: rotated, with tags, a pause and an event",
             "op": {
                 "op": "add_overlay",
                 "input": {
@@ -86,7 +86,8 @@
                         "frametrail:attributes": { "shape": "circle", "action": "jumpToTime", "actionTarget": 0 }
                     },
                     "tags": ["navigation"],
-                    "events": { "onStart": "FrameTrail.module('HypervideoController').pause();" }
+                    "pause": true,
+                    "events": { "onClick": "console.log('Back to the start');" }
                 }
             },
             "result": {
@@ -122,7 +123,8 @@
                             "frametrail:attributes": { "shape": "circle", "action": "jumpToTime", "actionTarget": 0 }
                         },
                         "frametrail:tags": ["navigation"],
-                        "frametrail:events": { "onStart": "FrameTrail.module('HypervideoController').pause();" },
+                        "frametrail:pause": true,
+                        "frametrail:events": { "onClick": "console.log('Back to the start');" },
                         "generator": {
                             "type": "Software",
                             "name": "FrameTrail-Conversational-UI",
@@ -600,7 +602,47 @@
             ]
         },
         {
-            "name": "update_overlay: no more pausing",
+            "name": "update_overlay: no more pausing, the older form replaced",
+            "op": { "op": "update_overlay", "input": { "ref": "2026-10-01T10:00:01.000Z", "pause": false } },
+            "result": {
+                "kind": "overlays",
+                "ref": "2026-10-01T10:00:01.000Z",
+                "type": "hotspot",
+                "name": "Jump to transport",
+                "start": 95,
+                "end": 110,
+                "box": { "left": 70, "top": 70, "width": 20, "height": 15 },
+                "text": "Transport"
+            },
+            "inverse": {
+                "method": "update",
+                "args": [
+                    "overlays",
+                    "2026-10-01T10:00:01.000Z",
+                    {
+                        "frametrail:pause": null,
+                        "generator": null,
+                        "frametrail:events": { "onStart": "FrameTrail.module('HypervideoController').pause();" }
+                    }
+                ]
+            },
+            "after": [
+                { "op": "remove", "path": "/hypervideo/contents/1/frametrail:events/onStart" },
+                { "op": "add", "path": "/hypervideo/contents/1/frametrail:pause", "value": false },
+                {
+                    "op": "add",
+                    "path": "/hypervideo/contents/1/generator",
+                    "value": {
+                        "type": "Software",
+                        "name": "FrameTrail-Conversational-UI",
+                        "model": "mistral-medium-latest",
+                        "provider": "mistral"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "update_overlay: an event removed",
             "op": { "op": "update_overlay", "input": { "ref": "2026-10-01T10:00:01.000Z", "events": { "onStart": null } } },
             "result": {
                 "kind": "overlays",

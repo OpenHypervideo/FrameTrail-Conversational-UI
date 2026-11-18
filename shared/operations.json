@@ -449,9 +449,13 @@
                         "description": "What the overlay shows, in FrameTrail's stored form: frametrail:type (text, html, quiz, hotspot, image, video, youtube, webpage, wikipedia, location, cursor, counter, chart, …), frametrail:name, frametrail:attributes with the type's settings (describe_type tells them), and the file name or URL in source or value as describe_type says."
                     },
                     "tags": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/tags"},
+                    "pause": {
+                        "description": "Pause the video when playback reaches the overlay's start (not when someone seeks into it). FrameTrail's editor sets it for new quizzes and plain hotspots; leave it out when the video should go on.",
+                        "type": "boolean"
+                    },
                     "events": {
                         "$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/overlayEvents",
-                        "description": "JavaScript run on the overlay's events (onReady, onStart, onEnd, onClick), e.g. pausing the video when a quiz appears. Only when code is asked for: motion is the attribute animation."
+                        "description": "JavaScript run on the overlay's events (onReady, onStart, onEnd, onClick). Only when code is asked for: a pause at the start is pause, motion is the attribute animation."
                     }
                 }
             },
@@ -501,8 +505,12 @@
                         "type": ["array", "null"],
                         "items": {"type": "string"}
                     },
+                    "pause": {
+                        "description": "Whether the video pauses when playback reaches the overlay's start. Also replaces an onStart event that only pauses, the older form of the pause.",
+                        "type": "boolean"
+                    },
                     "events": {
-                        "description": "Changes to the events (JavaScript run on onReady, onStart, onEnd, onClick) as a JSON Merge Patch; null removes them all. Only when code is asked for: motion is the attribute animation.",
+                        "description": "Changes to the events (JavaScript run on onReady, onStart, onEnd, onClick) as a JSON Merge Patch; null removes them all. Only when code is asked for: a pause at the start is pause, motion is the attribute animation.",
                         "type": ["object", "null"]
                     }
                 }
@@ -548,7 +556,11 @@
                         "$ref": "https://frametrail.org/schemas/1/annotation-file.schema.json#/$defs/annotation/properties/body",
                         "description": "What the annotation shows, in FrameTrail's stored form: frametrail:type (text, image, video, youtube, webpage, wikipedia, location, …), frametrail:name, frametrail:attributes with the type's settings (describe_type tells them), and the file name or URL in source or value as describe_type says."
                     },
-                    "tags": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/tags"}
+                    "tags": {"$ref": "https://frametrail.org/schemas/1/common.schema.json#/$defs/tags"},
+                    "pause": {
+                        "description": "Pause the video when playback reaches the annotation's start, while the annotation is shown (in an open content view, or on phones paired with the player). FrameTrail's editor sets it for new quizzes.",
+                        "type": "boolean"
+                    }
                 }
             },
             "output": {"$ref": "#/$defs/item"}
@@ -583,6 +595,10 @@
                         "description": "The new tags; null removes them.",
                         "type": ["array", "null"],
                         "items": {"type": "string"}
+                    },
+                    "pause": {
+                        "description": "Whether the video pauses when playback reaches the annotation's start, while the annotation is shown.",
+                        "type": "boolean"
                     }
                 }
             },

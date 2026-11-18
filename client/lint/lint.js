@@ -26,7 +26,7 @@
     // FrameTrail's lint, read when it is needed: FrameTrail loads it before any extension.
     function frameTrailLint() {
         if (!window.FrameTrailLint) {
-            throw new Error('FrameTrail-Conversational-UI: the check of changes needs FrameTrail\'s FrameTrailLint (the release after 1.4.1)');
+            throw new Error('FrameTrail-Conversational-UI: the check of changes needs FrameTrail\'s FrameTrailLint (1.4.2 or later)');
         }
         return window.FrameTrailLint;
     }

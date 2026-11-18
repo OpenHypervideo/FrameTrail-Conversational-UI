@@ -9,7 +9,7 @@
  *     ops.apply(store, changeset, { generator: … });
  *
  * Needs the edit API's reads around the data (getInfo, getUser, permission,
- * listHypervideos), which FrameTrail has since the release after 1.4.1.
+ * listHypervideos), which FrameTrail has since 1.4.2.
  */
 
 (function(ConversationalUI) {
@@ -19,7 +19,7 @@
     function liveStore(FrameTrail) {
 
         if (!FrameTrail.edit || typeof FrameTrail.edit.getInfo !== 'function') {
-            throw new Error('FrameTrail-Conversational-UI: the editor\'s operations need a FrameTrail whose edit API has getInfo(), getUser(), permission() and listHypervideos() (after 1.4.1)');
+            throw new Error('FrameTrail-Conversational-UI: the editor\'s operations need a FrameTrail whose edit API has getInfo(), getUser(), permission() and listHypervideos() (1.4.2 or later)');
         }
 
         // A store over edit, or over the edit object of a transaction.

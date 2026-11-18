@@ -8,10 +8,9 @@ on:
 
 # The FrameTrail whose serializer, keyframe math, lint, validator, schemas,
 # lint cases and type reference the JavaScript tests load (see
-# tests/run-js.mjs): the develop commit that brought FrameTrailLint and
-# docs/TYPES.md, until a FrameTrail release has them; then that release's tag.
+# tests/run-js.mjs): a FrameTrail release tag.
 env:
-  FRAMETRAIL_REF: 22c385839e44b89b4a333aab49f873fbc69565f2
+  FRAMETRAIL_REF: v1.4.6
   FRAMETRAIL_DIR: frametrail
 
 jobs:

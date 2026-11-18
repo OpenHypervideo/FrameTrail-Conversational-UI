@@ -6,7 +6,7 @@ An extension for [FrameTrail](https://github.com/OpenHypervideo/FrameTrail) that
 
 ## Requirements
 
-- FrameTrail 1.4.1 or later; the editing operations in the editor need the release after it (FrameTrail's `develop` until then), whose edit API tells the open hypervideo's time, the user and their permissions, and which brings the lint rules that check the assistant's changes (`FrameTrailLint`) and the Transcripts editor, where transcription is started by hand.
+- FrameTrail 1.4.1 or later; the editing operations in the editor need 1.4.2 or later, whose edit API tells the open hypervideo's time, the user and their permissions, and which brings the lint rules that check the assistant's changes (`FrameTrailLint`) and the Transcripts editor, where transcription is started by hand. The pause at an item's start that the assistant sets (`frametrail:pause`) takes effect from FrameTrail 1.4.6; earlier versions keep it but do not pause.
 - For the server part: FrameTrail's PHP backend (server mode), PHP 7.4 or later. No Composer.
 
 The browser part works wherever FrameTrail runs. The server part is used only in server mode: it answers a status action (which tells the panel how it reaches Mistral there), relays requests to Mistral, so the server can hold the key, and sends the sound of uploaded videos to a Whisper server for transcription (PHP's curl extension needed for both; ffmpeg on the server helps transcription).
@@ -195,7 +195,7 @@ node tests/run-js.mjs --build    # the same tests against build/
 php tests/run-php.php --build
 ```
 
-The JavaScript tests use a FrameTrail working copy with `FrameTrailLint` (the release after 1.4.1; `develop` until then) for its serializer, keyframe math, lint, validator and schemas, its lint cases and its type reference: `docs/TYPES.md`, of which `node scripts/sync-types.mjs` writes the table into `shared/prompts/types.md` (run it after moving to a newer FrameTrail; the tests fail while it is out of date). A clone next to this repository named `frametrail` is found by itself, any other is named with `FRAMETRAIL_DIR=<path>` or `--frametrail=<path>`. The conformance fixtures and the rules for running them are in [`shared/fixtures/`](shared/fixtures/README.md). The PHP tests run the relay and transcription against stand-ins for Mistral's API and a Whisper server, on PHP's built-in server; where ffmpeg is installed they also check the sound it takes out of a generated video (skipped otherwise).
+The JavaScript tests use a FrameTrail working copy with `FrameTrailLint` (1.4.2 or later) for its serializer, keyframe math, lint, validator and schemas, its lint cases and its type reference: `docs/TYPES.md`, of which `node scripts/sync-types.mjs` writes the table into `shared/prompts/types.md` (run it after moving to a newer FrameTrail; the tests fail while it is out of date). A clone next to this repository named `frametrail` is found by itself, any other is named with `FRAMETRAIL_DIR=<path>` or `--frametrail=<path>`. The conformance fixtures and the rules for running them are in [`shared/fixtures/`](shared/fixtures/README.md). The PHP tests run the relay and transcription against stand-ins for Mistral's API and a Whisper server, on PHP's built-in server; where ffmpeg is installed they also check the sound it takes out of a generated video (skipped otherwise).
 
 How well Mistral's models use the tools is measured by the evaluation, which needs a key and is not part of the tests:
 

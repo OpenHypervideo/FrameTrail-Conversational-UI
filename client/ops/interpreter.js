@@ -513,9 +513,16 @@
     /*  Types                                                             */
     /* ------------------------------------------------------------------ */
 
-    // Types and attributes FrameTrail's schemas keep for old data only: never offered.
+    // Types and attributes FrameTrail's schemas keep for old data only (their descriptions say "Legacy"): never offered.
+    // Attributes by type ('*': every type); a nested one as a path (onAnswered.showText).
     var LEGACY_TYPES      = ['button'],
-        LEGACY_ATTRIBUTES = ['animationIn', 'animationOut', 'animationDuration'];
+        LEGACY_ATTRIBUTES = {
+            '*':        ['animationIn', 'animationOut', 'animationDuration'],
+            hotspot:    ['linkUrl'],
+            quiz:       ['onCorrectAnswer', 'onWrongAnswer', 'onAnswered.showText', 'onAnswered.resumePlayback'],
+            urlpreview: ['embed'],
+            video:      ['alternateVideoFile']
+        };
 
     var SCHEMAS = 'https://frametrail.org/schemas/1/';
 
@@ -574,9 +581,14 @@
 
         var attributes = util.inlineSchema(documents[id], id, documents);
 
-        if (isObject(attributes.properties)) {
-            LEGACY_ATTRIBUTES.forEach(function(key) { delete attributes.properties[key]; });
-        }
+        LEGACY_ATTRIBUTES['*'].concat(has(LEGACY_ATTRIBUTES, input.type) ? LEGACY_ATTRIBUTES[input.type] : []).forEach(function(key) {
+            var path   = key.split('.'),
+                schema = attributes;
+            for (var i = 0; i < path.length - 1 && schema; i++) {
+                schema = isObject(schema.properties) ? schema.properties[path[i]] : null;
+            }
+            if (isObject(schema) && isObject(schema.properties)) { delete schema.properties[path[path.length - 1]]; }
+        });
 
         return {
             type:       input.type,

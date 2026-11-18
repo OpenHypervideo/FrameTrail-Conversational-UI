@@ -75,7 +75,7 @@
                 },
 
                 // FrameTrail's Transcripts edit mode offers it where the server
-                // transcribes (FrameTrail after 1.4.1; an older one has no such
+                // transcribes (FrameTrail 1.4.2 or later; an older one has no such
                 // mode and ignores the slot).
                 transcriber: {
                     label:     labels['ConversationalUiTranscribe'],

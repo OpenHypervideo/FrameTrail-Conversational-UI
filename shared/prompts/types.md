@@ -10,9 +10,9 @@ The types, and whether overlays, annotations and the resource library can use th
 
 | Type | Overlay | Annotation | Library | What it is |
 |------|:-------:|:----------:|:-------:|------------|
-| `text` | ✓ | ✓ |  | Text overlay or annotation: rich text with an optional title and card style, for titles, captions, notes and explanations. |
+| `text` | ✓ | ✓ |  | Text overlay or annotation: rich text with an optional title, plain or in a shape (rectangle, rounded rectangle, circle, speech bubble, cloud, block arrow), for titles, captions, callouts and labels. |
 | `html` | ✓ | ✓ |  | Custom HTML overlay or annotation, for what the other types cannot show. |
-| `quiz` | ✓ | ✓ |  | Quiz overlay or annotation: a question with answers to choose (scored), or asking for a free text or a rating, to check understanding at a point in the video. |
+| `quiz` | ✓ | ✓ |  | Quiz overlay or annotation: a question with answers to choose, or asking for a free text or a rating, at a point in the video. |
 | `hotspot` | ✓ |  |  | Hotspot overlay: a clickable shape (circle, rectangle, rounded rectangle) that marks something in the picture and can open a URL or jump to a time or another hypervideo, or a drawn mark (arrow, underline, freeform outline) that points something out. |
 | `cursor` | ✓ |  |  | Cursor overlay: a mouse pointer with click ripples, for walking through a screen recording. |
 | `counter` | ✓ |  |  | Counter overlay: a number that counts up or rolls like an odometer, for a figure or statistic the video mentions. |
@@ -31,7 +31,7 @@ The types, and whether overlays, annotations and the resource library can use th
 | `webpage` | ✓ | ✓ | ✓ | Web page shown in an iframe, or as a card when the site forbids embedding. |
 | `wikipedia` | ✓ | ✓ | ✓ | Wikipedia article summary, for background on a term, a person or an event. |
 | `entity` | ✓ | ✓ | ✓ | Linked data entity, such as a Wikidata item: a person, place or concept with its description. |
-| `location` | ✓ | ✓ | ✓ | Map (OpenStreetMap via Leaflet) centred on a coordinate, for a place the video shows or mentions. |
+| `location` | ✓ | ✓ | ✓ | Map (OpenStreetMap-based tiles via Leaflet) centred on a coordinate, for a place the video shows or mentions. |
 | `mastodon` | ✓ | ✓ | ✓ | Mastodon post. |
 | `codepen` | ✓ | ✓ | ✓ | CodePen embed: a live HTML, CSS and JavaScript demo. |
 | `figma` | ✓ | ✓ | ✓ | Figma embed: a design file or prototype. |
