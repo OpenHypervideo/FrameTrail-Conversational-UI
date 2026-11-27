@@ -5,12 +5,14 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  # On a branch by hand, e.g. one update.yml opened a pull request from (its own pushes do not start workflows)
+  workflow_dispatch:
 
 # The FrameTrail whose serializer, keyframe math, lint, validator, schemas,
 # lint cases and type reference the JavaScript tests load (see
-# tests/run-js.mjs): a FrameTrail release tag.
+# tests/run-js.mjs) is checked out here, at the release tag that
+# .github/frametrail-ref names.
 env:
-  FRAMETRAIL_REF: v1.4.6
   FRAMETRAIL_DIR: frametrail
 
 jobs:
@@ -20,6 +22,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # The FrameTrail release to test against: .github/frametrail-ref, which update.yml moves to each new release
+      - name: Read the FrameTrail ref
+        run: echo "FRAMETRAIL_REF=$(tr -d '[:space:]' < .github/frametrail-ref)" >> "$GITHUB_ENV"
 
       - name: Checkout FrameTrail
         uses: actions/checkout@v4
@@ -64,6 +70,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # The FrameTrail release to test against: .github/frametrail-ref, which update.yml moves to each new release
+      - name: Read the FrameTrail ref
+        run: echo "FRAMETRAIL_REF=$(tr -d '[:space:]' < .github/frametrail-ref)" >> "$GITHUB_ENV"
 
       - name: Checkout FrameTrail
         uses: actions/checkout@v4

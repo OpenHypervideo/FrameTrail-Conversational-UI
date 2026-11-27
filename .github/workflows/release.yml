@@ -14,13 +14,16 @@ jobs:
 
     env:
       VERSION: ${{ github.ref_name }}
-      # The FrameTrail whose pure scripts, schemas, lint cases and type reference the JavaScript tests load (as in build.yml).
-      FRAMETRAIL_REF: v1.4.6
+      # The FrameTrail whose pure scripts, schemas, lint cases and type reference the JavaScript tests load (as in build.yml), at the tag .github/frametrail-ref names.
       FRAMETRAIL_DIR: frametrail
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # The FrameTrail release to test against: .github/frametrail-ref, which update.yml moves to each new release
+      - name: Read the FrameTrail ref
+        run: echo "FRAMETRAIL_REF=$(tr -d '[:space:]' < .github/frametrail-ref)" >> "$GITHUB_ENV"
 
       - name: Checkout FrameTrail
         uses: actions/checkout@v4

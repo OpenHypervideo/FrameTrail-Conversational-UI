@@ -1,0 +1,147 @@
+name: Update
+
+# Daily and by hand: when FrameTrail has a release newer than .github/frametrail-ref (or for the ref given by hand), writes its tag there, runs scripts/sync-types.mjs and the JavaScript tests against it, and opens a pull request "Update to FrameTrail X.Y.Z" with the result. Nothing is merged: add what the release brings (types, inputs, legacy attributes) on the branch, then merge (see CLAUDE.md, "Development Setup").
+#
+# - The latest release is npm's: FrameTrail publishes to npm last. Prereleases are left to a run by hand.
+# - Each FrameTrail version gets its own branch, frametrail/<tag>. A run finds it there and stops, so it never overwrites fixes pushed to the branch, nor reopens a pull request that was closed.
+# - The pull request is opened with GITHUB_TOKEN, so build.yml does not run on it by itself: the test result in its description is this run's. A push to the branch runs build.yml, as does running it by hand on the branch.
+
+on:
+  schedule:
+    - cron: '37 5 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: FrameTrail tag, branch or commit (empty for the latest release)
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: frametrail-update
+  cancel-in-progress: false
+
+env:
+  FRAMETRAIL_DIR: frametrail
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Find the FrameTrail release
+        id: release
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          if [ -z "$REF" ]; then
+            version=$(npm view @frametrail/frametrail dist-tags.latest)
+            case "$version" in
+              *-*) echo "The latest release, $version, is a prerelease: run this workflow by hand with its tag to move to it."; exit 0 ;;
+            esac
+            REF="v$version"
+          fi
+          current=$(tr -d '[:space:]' < .github/frametrail-ref)
+          if [ "$REF" = "$current" ]; then
+            echo "The add-on is on FrameTrail $REF already: nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="frametrail/$REF"
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "The branch $branch exists already (its pull request is open or was closed): nothing to do." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "FrameTrail $current → $REF"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout FrameTrail
+        if: steps.release.outputs.branch
+        uses: actions/checkout@v4
+        with:
+          repository: OpenHypervideo/FrameTrail
+          ref: ${{ steps.release.outputs.ref }}
+          path: ${{ env.FRAMETRAIL_DIR }}
+
+      - name: Move to it
+        if: steps.release.outputs.branch
+        env:
+          REF: ${{ steps.release.outputs.ref }}
+        run: |
+          echo "$REF" > .github/frametrail-ref
+          node scripts/sync-types.mjs
+
+      - name: Run the JavaScript tests
+        id: tests
+        if: steps.release.outputs.branch
+        continue-on-error: true
+        run: node --test-reporter=spec tests/run-js.mjs 2>&1 | tee "$RUNNER_TEMP/tests.log"
+
+      - name: Open the pull request
+        if: steps.release.outputs.branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ steps.release.outputs.ref }}
+          CURRENT: ${{ steps.release.outputs.current }}
+          BRANCH: ${{ steps.release.outputs.branch }}
+          TESTS: ${{ steps.tests.outcome }}
+        run: |
+          commit=$(git -C "$FRAMETRAIL_DIR" rev-parse HEAD)
+          case "$REF" in
+            v[0-9]*) title="Update to FrameTrail ${REF#v}"; release="[Release notes](https://github.com/OpenHypervideo/FrameTrail/releases/tag/$REF) · " ;;
+            *)       title="Update to FrameTrail $REF"; release="" ;;
+          esac
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$BRANCH"
+          git add --all -- .github/frametrail-ref shared/prompts/types.md
+          git commit -m "$title"
+          git push origin "HEAD:refs/heads/$BRANCH"
+
+          body="$RUNNER_TEMP/body.md"
+          {
+            echo "FrameTrail \`$CURRENT\` → \`$REF\` (\`${commit:0:7}\`), by the [Update workflow]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID): \`.github/frametrail-ref\`, and \`shared/prompts/types.md\` from its \`docs/TYPES.md\`."
+            echo
+            echo "${release}[Changes in FrameTrail](https://github.com/OpenHypervideo/FrameTrail/compare/$CURRENT...$commit)"
+            echo
+            if [ "$TESTS" = success ]; then
+              echo "**JavaScript tests:** pass."
+            else
+              echo "**JavaScript tests:** fail."
+              echo
+              echo '<details><summary>The end of the test output</summary>'
+              echo
+              echo '```'
+              tail -n 120 "$RUNNER_TEMP/tests.log"
+              echo '```'
+              echo
+              echo '</details>'
+            fi
+            echo
+            echo '```'
+            git show --stat --format= HEAD
+            echo '```'
+            echo
+            echo 'Before merging:'
+            echo
+            echo '- [ ] Read the release'"'"'s changes for what the add-on should now offer: new types and inputs in `shared/operations.json` and `client/ops/`, the fixtures in `shared/fixtures/ops/`, `shared/prompts/system.md`, attributes that became legacy (`LEGACY_ATTRIBUTES`).'
+            echo '- [ ] Fix what failing tests name, on this branch.'
+            echo
+            echo 'GitHub Actions opened this pull request, so `build.yml` (with the PHP tests and the build) does not run on it by itself; the result above is from the Update run. A push to this branch runs it, as does running Build by hand on it.'
+          } > "$body"
+
+          gh pr create --head "$BRANCH" --title "$title" --body-file "$body"
+          echo "Opened a pull request for $BRANCH (tests: $TESTS)." >> "$GITHUB_STEP_SUMMARY"
