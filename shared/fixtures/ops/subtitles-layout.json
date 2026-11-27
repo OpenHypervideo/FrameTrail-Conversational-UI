@@ -132,7 +132,7 @@
                 "errors": [
                     {
                         "path": "/contentViews/1/type",
-                        "message": "must be one of \"TimedContent\", \"CustomHTML\", \"Transcript\", \"Timelines\", \"Chapters\""
+                        "message": "must be one of \"TimedContent\", \"CustomHTML\", \"Transcript\", \"Timelines\", \"Chapters\", \"QuizResults\""
                     }
                 ]
             }
